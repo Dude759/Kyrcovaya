@@ -11,7 +11,7 @@ export function PublicHeader() {
       <nav className="public-nav" aria-label="Основная навигация">
         <NavLink to="/driver/stations">Для водителей</NavLink>
         <NavLink to="/login?role=operator">Для операторов</NavLink>
-        <a href="#about">О платформе</a>
+        <Link to="/#about">О платформе</Link>
       </nav>
       <div className="public-actions">
         <Link className="text-link" to="/login">

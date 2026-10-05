@@ -7,7 +7,7 @@
 1. Создать публичный репозиторий GitHub и загрузить проект, сохранив структуру: `.github/workflows/pages.yml` в корне, `frontend/` рядом. Файл `.env`, зависимости и `dist` в Git не добавлять.
 2. В **Settings → Pages → Build and deployment → Source** выбрать **GitHub Actions**.
 3. В **Settings → Secrets and variables → Actions → Variables** добавить переменную `YANDEX_MAPS_API_KEY` со значением браузерного ключа JavaScript API 3.0. Подпись запросов и серверный секрет здесь не нужны. Браузерный ключ будет доступен посетителю в сборке; его ограничивают разрешёнными доменами в кабинете Яндекса.
-4. Отправить изменения в `main` или `master`, либо запустить **Actions → Publish frontend to GitHub Pages → Run workflow**.
+4. Отправить изменения в `main`, либо запустить **Actions → Publish frontend to GitHub Pages → Run workflow** для `main`. Эта ветка должна быть разрешена в настройках окружения `github-pages`.
 5. После успешного запуска открыть ссылку из задания **deploy** или из **Settings → Pages**. Обычный адрес: `https://<логин>.github.io/<репозиторий>/`.
 
 Workflow получает базовый путь из настроек Pages. На GitHub Pages маршруты используют фрагмент URL: `<адрес-сайта>/#/driver/stations`. Прямые ссылки и обновление страницы работают без серверного перенаправления. Локальный запуск по умолчанию сохраняет обычные адреса `/driver/stations`.

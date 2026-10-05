@@ -38,10 +38,15 @@ const Router =
   import.meta.env.VITE_ROUTER_MODE === "hash" ? HashRouter : BrowserRouter;
 
 function ScrollRestoration() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }, [pathname]);
+    const anchor = hash ? document.getElementById(hash.slice(1)) : null;
+    if (anchor) {
+      anchor.scrollIntoView({ block: "start", behavior: "smooth" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  }, [pathname, hash]);
   return null;
 }
 
