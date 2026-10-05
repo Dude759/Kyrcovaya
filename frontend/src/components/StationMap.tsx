@@ -1,5 +1,5 @@
 import { LocateFixed, Minus, Plus } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Station } from "../data";
 import { stations as seedStations, statusLabels } from "../data";
@@ -171,7 +171,8 @@ export function StationMap({
 
   const longitude = selected?.coordinates[0];
   const latitude = selected?.coordinates[1];
-  useEffect(() => {
+  // Apply the initial station camera before the location controls become interactive.
+  useLayoutEffect(() => {
     if (
       ready &&
       longitude !== undefined &&
