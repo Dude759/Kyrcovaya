@@ -1,0 +1,151 @@
+openapi: 3.1.0
+info:
+  title: Энерготранспорт — Reservation Core
+  version: 0.2.0
+  description: |
+    Stage 3A. Только оценка доступности; публичных операций hold/confirm/release нет.
+    Массивы броней/платежей/сессий в workspace остаются пустыми. POST /bookings и /payments возвращают 501.
+servers:
+  - url: https://energotransport-api-dude759.onrender.com/api
+  - url: http://127.0.0.1:3001/api
+paths:
+  /stations/{id}/availability:
+    get:
+      operationId: getStationAvailability
+      summary: Оценить свободные физические порты на интервал
+      description: |
+        Нужен действующий Bearer-токен водителя. Оператор получает 403, даже для своей станции.
+        start — ISO 8601 с Z или явным смещением, строго в будущем, не далее четырёх суток по часам БД.
+        Числа относятся к неархивным портам указанного типа; offline/service порты и станции недоступны.
+        Диапазон [start,end). Held с истёкшим expires_at не блокирует оценку, confirmed блокирует.
+        GET не меняет строки БД и не удерживает порт. Результат может измениться сразу после чтения.
+        Неизвестные и повторяющиеся query-параметры отклоняются с 400. Плюс в смещении кодируется как %2B.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, maxLength: 80 }
+        - in: query
+          name: start
+          required: true
+          schema: { type: string, format: date-time }
+        - in: query
+          name: duration
+          required: true
+          schema: { type: integer, enum: [30, 45, 60, 90] }
+        - in: query
+          name: connector
+          required: true
+          schema: { type: string, enum: [CCS2, CHAdeMO, Type 2] }
+      responses:
+        "200":
+          description: Оценка; при отсутствии свободных портов цена и энергия null
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Availability"
+        "400":
+          $ref: "#/components/responses/Invalid"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Не найден обязательный профиль водителя для оценки
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Непрозрачный отзываемый токен, не JWT
+  responses:
+    Invalid:
+      description: Некорректные query-поля или интервал
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthenticated:
+      description: Нет действующего токена
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Требуется роль driver или origin не разрешён
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Станция не существует или архивирована
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+    Availability:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          stationId,
+          connector,
+          start,
+          end,
+          duration,
+          available,
+          total,
+          estimatedAmount,
+          estimatedAmountKopecks,
+          estimatedEnergyKwh,
+          estimateMethod,
+          currency,
+          guaranteed,
+          evaluatedAt,
+          validUntil,
+        ]
+      properties:
+        stationId: { type: string }
+        connector: { type: string, enum: [CCS2, CHAdeMO, Type 2] }
+        start:
+          {
+            type: string,
+            format: date-time,
+            description: Каноническое UTC-время,
+          }
+        end: { type: string, format: date-time }
+        duration: { type: integer, enum: [30, 45, 60, 90], description: Минуты }
+        available: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+        estimatedAmount:
+          {
+            type: [number, "null"],
+            minimum: 0,
+            description: Рубли,
+            не обещание списания,
+          }
+        estimatedAmountKopecks: { type: [integer, "null"], minimum: 0 }
+        estimatedEnergyKwh: { type: [number, "null"], minimum: 0 }
+        estimateMethod:
+          type: string
+          const: power65-battery30
+          description: min(0.65 × минимальная мощность свободного порта × часы, 0.30 × ёмкость батареи из профиля); тариф станции в копейках, округление итоговой суммы до копейки
+        currency: { type: string, const: RUB }
+        guaranteed: { type: boolean, const: false }
+        evaluatedAt: { type: string, format: date-time }
+        validUntil:
+          type: string
+          format: date-time
+          description: min(evaluatedAt + 30 секунд, start); не гарантия наличия порта до этой даты

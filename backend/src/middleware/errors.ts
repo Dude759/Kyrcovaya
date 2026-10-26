@@ -33,6 +33,10 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
       .json({ message: "Запись с такими данными уже существует." });
     return;
   }
+  if (error?.code === "23P01") {
+    res.status(409).json({ message: "Порт уже занят на выбранный интервал." });
+    return;
+  }
   if (["23514", "23503", "22P02", "22003"].includes(error?.code)) {
     res
       .status(400)

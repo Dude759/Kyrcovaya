@@ -9,6 +9,7 @@ import { authenticate, operatorOnly } from "./modules/auth/middleware.js";
 import { userRoutes } from "./modules/users/routes.js";
 import { catalogRoutes } from "./modules/catalog/routes.js";
 import { workspaceRoutes } from "./modules/workspace/routes.js";
+import { availabilityRoutes } from "./modules/reservations/availability.js";
 
 export function createApp(
   pool: Database,
@@ -35,7 +36,7 @@ export function createApp(
   );
   app.use(express.json({ limit: "16kb" }));
   app.get(["/health", "/api/health"], (_req, res) => {
-    res.json({ status: "ok", version: "0.1.0" });
+    res.json({ status: "ok", version: "0.2.0" });
   });
   app.get(["/ready", "/api/ready"], async (_req, res) => {
     try {
@@ -46,6 +47,7 @@ export function createApp(
     }
   });
   app.use("/api/auth", authRoutes(pool, config.AUTH_TTL_SECONDS));
+  app.use("/api/stations", availabilityRoutes(pool));
   app.use("/api/stations", catalogRoutes(pool));
   const unavailable = () => {
     throw new HttpError(
