@@ -94,3 +94,7 @@ npm test
 Тесты проверяют повтор seed, ограничения БД, хеширование, запрет operator-регистрации, роли, отзыв/истечение, изоляцию двух организаций, профиль/настройки через два реальных запуска процесса, физические порты, общий каталог, честный workspace, 501, CORS, readiness и публичную конфигурацию. [Локальный протокол Foundation](../docs/testing/backend-results.md), [облачные проверки и публичный smoke](../docs/testing/public-results.md). В GitHub Actions используется отдельная PostgreSQL 17; публичная рабочая БД тестами миграций не очищается.
 
 Основные источники реализации: [Express 5](https://expressjs.com/en/guide/migrating-5/), [параметризованные запросы pg](https://node-postgres.com/features/queries), [Node.js 24 crypto/scrypt](https://nodejs.org/docs/latest-v24.x/api/crypto.html), [ограничения PostgreSQL 17](https://www.postgresql.org/docs/17/ddl-constraints.html).
+
+## Проверка публичного выпуска
+
+API размещён на Render Free, БД — Neon Free. После merge проверьте не только health/ready, но и commit живого deploy в Render: он должен совпадать с выпущенным main. Для автопубликации нужна связь сервиса с GitHub, а не только публичный URL репозитория. Инструкция и ограничения — [публичный стенд](../docs/public-demo.md); результаты и ссылка на закрывающий PR — [публичный протокол](../docs/testing/public-results.md).
