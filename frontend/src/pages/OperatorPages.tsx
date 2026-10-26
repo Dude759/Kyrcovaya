@@ -33,6 +33,8 @@ export function OperatorDashboardPage() {
         : (s.limitKw * (s.loadPercent ?? 0)) / 100),
     0,
   );
+  const loadKnown =
+    stations.length > 0 && stations.every((s) => s.loadPercent !== null);
   const revenue = sessions
     .filter((s) => s.status === "completed")
     .reduce((sum, s) => sum + s.energy * s.tariff, 0);
@@ -53,8 +55,10 @@ export function OperatorDashboardPage() {
           ["Активных сессий", `${active.length}`, "В личных кабинетах"],
           [
             "Текущая нагрузка",
-            `${(load / 1000).toFixed(2)} МВт`,
-            `${Math.round((load / networkLimit) * 100)}% общего лимита`,
+            loadKnown ? `${(load / 1000).toFixed(2)} МВт` : "—",
+            loadKnown && networkLimit > 0
+              ? `${Math.round((load / networkLimit) * 100)}% общего лимита`
+              : "Нет измерений мощности",
           ],
           ["Выручка", money(revenue), "Завершённые сессии"],
         ].map(([title, value, note]) => (
@@ -72,6 +76,9 @@ export function OperatorDashboardPage() {
       <div className="dashboard-grid">
         <section className="dashboard-panel network-panel">
           <h2>Загрузка станций</h2>
+          {!loadKnown && (
+            <p>Телеметрия не подключена. Измеренная нагрузка неизвестна.</p>
+          )}
           {stations
             .filter((s) => s.loadPercent !== null)
             .map((s) => (
@@ -105,7 +112,11 @@ export function OperatorDashboardPage() {
             </div>
             <div>
               <dt>Резерв</dt>
-              <dd>{Math.round(networkLimit - load)} кВт</dd>
+              <dd>
+                {loadKnown
+                  ? `${Math.round(networkLimit - load)} кВт`
+                  : "Нет измерений"}
+              </dd>
             </div>
           </dl>
           <Link className="button" to="/operator/power">
@@ -171,6 +182,20 @@ export function OperatorStationsPage() {
     "limit" | "service" | "diagnostics" | null
   >(null);
   const action = useAction();
+  if (!station)
+    return (
+      <AppShell
+        role="operator"
+        active="stations"
+        title="Станции и мощность"
+        subtitle="Объекты организации"
+      >
+        <EmptyState
+          title="Станций пока нет"
+          text="В каталоге вашей организации нет станций."
+        />
+      </AppShell>
+    );
   const limit = draftLimit ?? station.limitKw;
   const visible = stations.filter(
     (s) =>
@@ -313,29 +338,30 @@ export function OperatorStationsPage() {
           <hr />
           <h3>Выделенная мощность</h3>
           <strong className="power-value">{limit} кВт</strong>
-          <small>из доступных 600 кВт</small>
+          <small>Установленная мощность: {station.maxPowerKw ?? 600} кВт</small>
           <input
             className="power-range"
             aria-label="Лимит мощности станции"
             type="range"
-            min={120}
-            max={600}
-            step={20}
+            min={data?.stage === "foundation" ? 0 : 120}
+            max={station.maxPowerKw ?? 600}
+            step={data?.stage === "foundation" ? 1 : 20}
+            disabled={data?.stage === "foundation"}
             value={limit}
             onChange={(e) => setDraft(Number(e.target.value))}
           />
           <div className="range-labels">
-            <span>120 кВт</span>
-            <span>600 кВт</span>
+            <span>{data?.stage === "foundation" ? 0 : 120} кВт</span>
+            <span>{station.maxPowerKw ?? 600} кВт</span>
           </div>
           <hr />
           <h3>Разъёмы</h3>
           <dl className="details-list">
             {station.connectors.map((c) => (
-              <div key={c.type}>
+              <div key={`${c.type}-${c.powerKw}`}>
                 <dt>{c.type}</dt>
                 <dd>
-                  {c.total - c.available} из {c.total} занято
+                  {c.available} из {c.total} доступно
                 </dd>
               </div>
             ))}
@@ -442,6 +468,26 @@ export function OperatorPowerPage() {
   const [draft, setDraft] = useState<number | null>(null);
   const [confirm, setConfirm] = useState(false);
   const action = useAction();
+  if (data?.stage === "foundation")
+    return (
+      <AppShell
+        role="operator"
+        active="power"
+        title="Управление мощностью"
+        subtitle="Конфигурация сети"
+      >
+        <section className="dashboard-panel">
+          <h2>Лимит организации: {data.networkLimit} кВт</h2>
+          <p>
+            Измерения, энергосистема и распределение мощности ещё не подключены.
+            Свободная мощность неизвестна.
+          </p>
+          <Link className="button button--outline" to="/operator/stations">
+            Станции организации
+          </Link>
+        </section>
+      </AppShell>
+    );
   const limit = draft ?? data!.networkLimit;
   const allocated = data!.stations.reduce((sum, s) => sum + s.limitKw, 0);
   return (

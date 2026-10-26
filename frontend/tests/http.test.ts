@@ -36,6 +36,38 @@ it("отправляет авторизацию и JSON на выбранный 
     }),
   );
 });
+it("загружает все страницы серверного каталога без подстановки локальных станций", async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          items: [{ id: "database-a" }],
+          nextCursor: "database-a",
+        }),
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ items: [{ id: "database-b" }], nextCursor: null }),
+      ),
+    );
+  vi.stubGlobal("fetch", fetchMock);
+  const { api } = await import("../src/services/api");
+  expect((await api.stations()).map((s) => s.id)).toEqual([
+    "database-a",
+    "database-b",
+  ]);
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+    "/api/stations?limit=200",
+    "/api/stations?limit=200&cursor=database-a",
+  ]);
+});
+it("не подменяет недоступный серверный каталог локальным mock", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+  const { api } = await import("../src/services/api");
+  await expect(api.stations()).rejects.toMatchObject({ status: 503 });
+});
 it("поддерживает ответ без тела после выхода", async () => {
   vi.stubGlobal(
     "fetch",

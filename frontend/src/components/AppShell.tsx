@@ -87,7 +87,7 @@ export function AppShell({
   subtitle,
   children,
 }: AppShellProps) {
-  const { user, logout, error, refresh } = useApp();
+  const { user, data, logout, error, refresh } = useApp();
   const action = useAction();
   const items = role === "operator" ? operatorItems : driverItems;
   const name = user?.name ?? "Гость";
@@ -166,7 +166,17 @@ export function AppShell({
         </div>
       </header>
 
-      <main className="app-content">
+      <main
+        className={`app-content${data?.stage === "foundation" ? " app-content--foundation" : ""}`}
+      >
+        {data?.stage === "foundation" && (
+          <div className="connection-banner" role="status">
+            Каталог и аккаунт подключены к серверу. Бронирование, оплата,
+            зарядка, управление станциями и телеметрия появятся в следующих
+            версиях. Доступность портов пока отражает конфигурацию учебного
+            каталога.
+          </div>
+        )}
         {error && (
           <div className="connection-banner" role="alert">
             <span>

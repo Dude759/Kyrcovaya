@@ -152,7 +152,7 @@ export function StationPage() {
               <span>Доступность</span>
             </div>
             {station.connectors.map((c) => (
-              <div key={c.type}>
+              <div key={`${c.type}-${c.powerKw}`}>
                 <strong>{c.type}</strong>
                 <span>{c.powerKw} кВт</span>
                 <span className={c.available ? "available-text" : ""}>
@@ -169,11 +169,19 @@ export function StationPage() {
             </div>
             <div>
               <dt>Парковка</dt>
-              <dd>Бесплатно 2 часа</dd>
+              <dd>
+                {data?.stage === "foundation"
+                  ? "Уточняется у станции"
+                  : "Бесплатно 2 часа"}
+              </dd>
             </div>
             <div>
               <dt>Режим работы</dt>
-              <dd>Круглосуточно</dd>
+              <dd>
+                {data?.stage === "foundation"
+                  ? "Уточняется у станции"
+                  : "Круглосуточно"}
+              </dd>
             </div>
           </dl>
           <p className="updated">{station.district}</p>
@@ -185,7 +193,11 @@ export function StationPage() {
           >
             Маршрут в Яндекс Картах ↗
           </a>
-          {bookable ? (
+          {data?.stage === "foundation" ? (
+            <button className="button button--full" disabled>
+              Бронирование скоро появится
+            </button>
+          ) : bookable ? (
             <Link
               className="button button--full"
               to={`/driver/booking?station=${station.id}`}

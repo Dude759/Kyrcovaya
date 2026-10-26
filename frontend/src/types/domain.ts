@@ -10,7 +10,12 @@ export type Profile = {
   connector: Connector["type"];
   battery: number;
 };
-export type User = Profile & { id: string; role: Role };
+// Operators have no vehicle. Driver auth/profile responses include every Profile field.
+export type User = Pick<Profile, "name" | "email" | "phone"> &
+  Partial<Omit<Profile, "name" | "email" | "phone">> & {
+    id: string;
+    role: Role;
+  };
 export type Preferences = {
   bookingAlerts: boolean;
   receipts: boolean;
@@ -67,6 +72,7 @@ export type Forecast = {
   points: { time: string; powerKw: number }[];
 };
 export type Snapshot = {
+  stage?: "foundation";
   stations: Station[];
   bookings: Booking[];
   sessions: Session[];

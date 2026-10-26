@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "vite --mode server --host 127.0.0.1 --port 5173 --strictPort",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",

@@ -2,7 +2,7 @@ import { LocateFixed, Minus, Plus } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Station } from "../data";
-import { stations as seedStations, statusLabels } from "../data";
+import { statusLabels } from "../data";
 
 type StationMapProps = {
   stations: Station[];
@@ -11,15 +11,20 @@ type StationMapProps = {
   compact?: boolean;
 };
 
-const fallbackPositions = [
-  [24, 19],
-  [46, 27],
-  [76, 18],
-  [29, 46],
-  [62, 51],
-  [84, 69],
-  [49, 81],
-];
+function fallbackPositions(stations: Station[]) {
+  const longitudes = stations.map((s) => s.coordinates[0]);
+  const latitudes = stations.map((s) => s.coordinates[1]);
+  const west = Math.min(...longitudes),
+    east = Math.max(...longitudes);
+  const south = Math.min(...latitudes),
+    north = Math.max(...latitudes);
+  return stations.map((s) => [
+    east === west ? 50 : 10 + (80 * (s.coordinates[0] - west)) / (east - west),
+    north === south
+      ? 50
+      : 90 - (80 * (s.coordinates[1] - south)) / (north - south),
+  ]);
+}
 
 let mapsScript: Promise<void> | null = null;
 
@@ -53,6 +58,7 @@ export function StationMap({
     () => stations.find((station) => station.id === selectedId) ?? stations[0],
     [selectedId, stations],
   );
+  const positions = useMemo(() => fallbackPositions(stations), [stations]);
 
   const instance = useRef<InstanceType<typeof ymaps3.YMap> | null>(null);
   const [ready, setReady] = useState(false);
@@ -229,12 +235,12 @@ export function StationMap({
           </span>
           <span className="map-label map-label--street">Тверская улица</span>
           <span className="map-label map-label--river">Москва-река</span>
-          {stations.slice(0, fallbackPositions.length).map((station) => (
+          {stations.map((station, index) => (
             <button
               className={`map-marker status-marker--${station.status} ${station.id === selected?.id ? "is-selected" : ""}`}
               style={{
-                left: `${fallbackPositions[seedStations.findIndex((s) => s.id === station.id) % fallbackPositions.length]?.[0] ?? 50}%`,
-                top: `${fallbackPositions[seedStations.findIndex((s) => s.id === station.id) % fallbackPositions.length]?.[1] ?? 50}%`,
+                left: `${positions[index][0]}%`,
+                top: `${positions[index][1]}%`,
               }}
               type="button"
               onClick={() => onSelect?.(station.id)}
@@ -324,7 +330,8 @@ export function StationMap({
           </span>
           <strong>{selected.name}</strong>
           <small>
-            {Math.max(...selected.connectors.map((item) => item.powerKw))} кВт ·{" "}
+            {Math.max(0, ...selected.connectors.map((item) => item.powerKw))}{" "}
+            кВт ·{" "}
             {selected.connectors.reduce((sum, item) => sum + item.available, 0)}{" "}
             свободно
           </small>

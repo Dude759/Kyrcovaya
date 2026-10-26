@@ -13,7 +13,10 @@ export function StationCard({ station, selected, onSelect }: StationCardProps) {
     (sum, item) => sum + item.available,
     0,
   );
-  const maxPower = Math.max(...station.connectors.map((item) => item.powerKw));
+  const maxPower = Math.max(
+    0,
+    ...station.connectors.map((item) => item.powerKw),
+  );
 
   return (
     <article className={`station-card ${selected ? "is-selected" : ""}`}>
@@ -32,7 +35,11 @@ export function StationCard({ station, selected, onSelect }: StationCardProps) {
       </button>
       <div className="station-card__meta">
         <span>{ports} свободно</span>
-        <span>до {maxPower} кВт</span>
+        <span>
+          {station.connectors.length
+            ? `до ${maxPower} кВт`
+            : "Порты не добавлены"}
+        </span>
         <span>от {station.pricePerKwh} ₽/кВт⋅ч</span>
         <Link to={`/driver/stations/${station.id}`}>Подробнее →</Link>
       </div>

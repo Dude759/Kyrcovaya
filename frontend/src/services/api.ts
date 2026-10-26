@@ -13,6 +13,8 @@ import type {
   Payment,
   Forecast,
 } from "../types/domain";
+import type { Station } from "../data";
+import { stations as mockStations } from "../data";
 import { mockRequest } from "./mockApi";
 import { ApiError } from "./errors";
 
@@ -38,12 +40,15 @@ export async function request<T>(
   path: string,
   method = "GET",
   body?: unknown,
+  anonymous = false,
 ): Promise<T> {
-  if (apiMode === "mock") return mockRequest<T>(path, method, body, getToken());
+  if (apiMode === "mock") {
+    return mockRequest<T>(path, method, body, getToken());
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const token = getToken();
+    const token = anonymous ? null : getToken();
     const response = await fetch(baseUrl + path, {
       method,
       signal: controller.signal,
@@ -92,6 +97,23 @@ export const api = {
   resetPassword: (token: string, password: string) =>
     request<null>("/auth/reset", "POST", { token, password }),
   workspace: () => request<Snapshot>("/workspace"),
+  stations: async () => {
+    if (apiMode === "mock") return mockStations;
+    const stations: Station[] = [];
+    let cursor: string | null = null;
+    do {
+      const result: { items: Station[]; nextCursor: string | null } =
+        await request(
+          `/stations?limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+          "GET",
+          undefined,
+          true,
+        );
+      stations.push(...result.items);
+      cursor = result.nextCursor;
+    } while (cursor);
+    return stations;
+  },
   profile: (input: Profile) => request<User>("/profile", "PATCH", input),
   preferences: (input: Partial<Preferences>) =>
     request<Preferences>("/preferences", "PATCH", input),

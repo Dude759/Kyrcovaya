@@ -1,10 +1,34 @@
 import { ArrowRight } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PublicHeader } from "../components/PublicHeader";
 import { StationMap } from "../components/StationMap";
-import { stations } from "../data";
+import type { Station } from "../data";
+import { api, apiMode } from "../services/api";
+import { errorMessage } from "../services/errors";
 
 export function LandingPage() {
+  const [stations, setStations] = useState<Station[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let active = true;
+    api
+      .stations()
+      .then((value) => {
+        if (active) setStations(value);
+      })
+      .catch((err) => {
+        if (active) setError(errorMessage(err));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [retry]);
   const online = stations.filter(
     (s) => !["offline", "service"].includes(s.status),
   ).length;
@@ -47,27 +71,60 @@ export function LandingPage() {
             </div>
             <dl className="network-metrics">
               <div>
-                <dt>{stations.length}</dt>
+                <dt>{loading || error ? "—" : stations.length}</dt>
                 <dd>станций в сети</dd>
               </div>
               <div>
-                <dt>{ports}</dt>
+                <dt>{loading || error ? "—" : ports}</dt>
                 <dd>зарядных разъёмов</dd>
               </div>
               <div>
-                <dt>{(load / 1000).toFixed(2)} МВт</dt>
-                <dd>нагрузка в демосети</dd>
+                <dt>
+                  {stations.length &&
+                  stations.every((s) => s.loadPercent !== null)
+                    ? `${(load / 1000).toFixed(2)} МВт`
+                    : "—"}
+                </dt>
+                <dd>
+                  {apiMode === "mock"
+                    ? "нагрузка в демосети"
+                    : "телеметрия не подключена"}
+                </dd>
               </div>
             </dl>
           </div>
           <div className="landing__map">
-            <StationMap stations={stations} compact />
+            {error ? (
+              <div className="route-state" role="alert">
+                <p>{error}</p>
+                <button
+                  className="button"
+                  onClick={() => {
+                    setError("");
+                    setLoading(true);
+                    setRetry((value) => value + 1);
+                  }}
+                >
+                  Повторить
+                </button>
+              </div>
+            ) : (
+              <StationMap stations={stations} compact />
+            )}
             <div className="live-status">
               <div>
                 <strong>
-                  {online} из {stations.length} станций доступны
+                  {loading
+                    ? "Загружаем каталог…"
+                    : error
+                      ? "Каталог недоступен"
+                      : `${online} из ${stations.length} станций доступны`}
                 </strong>
-                <small>Обзор демонстрационной сети</small>
+                <small>
+                  {apiMode === "mock"
+                    ? "Обзор демонстрационной сети"
+                    : "Учебный каталог из серверной базы"}
+                </small>
               </div>
               <span />
             </div>
