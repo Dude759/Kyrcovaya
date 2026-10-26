@@ -1,4 +1,4 @@
-# Публичная демонстрация: Stage 2B
+# Публичная демонстрация: Foundation, Reservation Core, Test Payments
 
 26 октября 2026 года. Стек: GitHub Pages (React) → Render Free (Express) → Neon Free (PostgreSQL 17). [Приложение](https://dude759.github.io/Kyrcovaya/), [API health](https://energotransport-api-dude759.onrender.com/health), [протокол](testing/public-results.md). Этап закрывается только после живой проверки API и сайта; наличие коммита или build succeeded не заменяют эту проверку.
 
@@ -63,6 +63,12 @@ Workflow Pages читает несекретные GitHub repository variables:
 
 Вторая пустая организация и qa.operator@energotransport.test предназначены только для проверки изоляции: у них нет станций. Воспроизводимая подготовка — [public-fixture.sql](../backend/scripts/public-fixture.sql), основной прогон — `node backend/scripts/public-smoke.mjs https://energotransport-api-dude759.onrender.com`. Режим `--interactive` останавливается после сохранения профиля для контролируемого redeploy, затем после проверки сохранности — для истечения только созданных этим прогоном QA-токенов. Секретные Bearer-токены и случайный пароль остаются в памяти процесса. В отчёте фиксируются только статусы и синтетический email.
 
-Render Free засыпает после 15 минут без запросов; первое подключение может занять около минуты. У Neon Free при проверке документации указаны 1 ГБ на проект и лимит вычислений; тарифные условия могут меняться. Платные планы и обход сна периодическими пингами не включаются. На текущем этапе доступны auth, профиль, настройки, каталог и карта; бронирование/оплата/зарядка подключаются в Stage 3A/3B/3C.
+Render Free засыпает после 15 минут без запросов; первое подключение может занять около минуты. У Neon Free при проверке документации указаны 1 ГБ на проект и лимит вычислений; тарифные условия могут меняться. Платные планы и обход сна периодическими пингами не включаются. Доступны auth, профиль, настройки, каталог, карта, availability и Test Payments. Подтверждённая бронь — 3C, серверная зарядка — 3D.
 
 Источники: [Render Web Services](https://render.com/docs/web-services), [Free](https://render.com/docs/free), [deploy lifecycle](https://render.com/docs/deploys), [секреты](https://render.com/docs/configure-environment-variables), [Neon plans](https://neon.com/docs/introduction/plans), [TLS](https://neon.com/docs/connect/connect-securely).
+
+## Платёжный инкремент 3B
+
+В Render заданы PAYMENT_PUBLIC_ORIGIN=https://energotransport-api-dude759.onrender.com и приватный PAYMENT_WEBHOOK_SECRET (случайный ключ подписи). Секрет хранится только в окружении API, не в VITE/Git/логах. Обе переменные нужны одновременно; настройки БД и остальные env сохраняются.
+
+Приёмка: `node backend/scripts/public-smoke.mjs https://energotransport-api-dude759.onrender.com --reservations --payments`. Прогон проверяет create/idempotency, fail/retry/cancel, HTTPS форму, повтор success, отсутствие booking и expiry. Capability URL и токены остаются в памяти. Вымышленные заказы сохраняются; hold освобождается или истекает. [Протокол 3B](testing/payment-results.md). Основной переход оформления брони закрыт до 3C.

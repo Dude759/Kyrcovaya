@@ -51,7 +51,11 @@ async function reservationTransaction<T>(
 }
 
 // Caller must own an open transaction. Stage 3B can include this operation in payment creation.
-export async function createHoldInTransaction(db: PoolClient, raw: unknown) {
+export async function createHoldInTransaction(
+  db: PoolClient,
+  raw: unknown,
+  reuse?: { id: string; expiresAt: Date },
+) {
   const input = holdInput.parse(raw);
   const start = new Date(input.startAt),
     end = new Date(input.endAt);
@@ -96,9 +100,39 @@ export async function createHoldInTransaction(db: PoolClient, raw: unknown) {
   const now = await databaseNow(db);
   // Revalidate after waiting for locks, not only at request arrival.
   validateInterval(start, end, now);
-  const expires = new Date(
-    Math.min(now.getTime() + input.ttlSeconds * 1000, start.getTime()),
-  );
+  const expires =
+    reuse?.expiresAt ??
+    new Date(
+      Math.min(now.getTime() + input.ttlSeconds * 1000, start.getTime()),
+    );
+  if (expires <= now) throw new HttpError(409, "Время удержания истекло.");
+  if (reuse) {
+    const old = (
+      await db.query<ReservationRow>(
+        "SELECT * FROM connector_reservations WHERE id=$1 FOR UPDATE",
+        [reuse.id],
+      )
+    ).rows[0];
+    if (
+      !old ||
+      !["released", "expired"].includes(old.state) ||
+      old.connector_id !== free.id ||
+      old.start_at.getTime() !== start.getTime() ||
+      old.end_at.getTime() !== end.getTime()
+    )
+      throw new HttpError(
+        409,
+        "Удержание не может быть повторно использовано.",
+      );
+    return dto(
+      (
+        await db.query<ReservationRow>(
+          "UPDATE connector_reservations SET state='held',expires_at=$2 WHERE id=$1 RETURNING *",
+          [reuse.id, expires],
+        )
+      ).rows[0],
+    );
+  }
   const row = (
     await db.query<ReservationRow>(
       `INSERT INTO connector_reservations(connector_id,start_at,end_at,expires_at,created_at)
@@ -114,54 +148,59 @@ export function createHold(pool: Database, raw: unknown) {
 }
 
 // Internal only: there is no HTTP release/confirm/hold endpoint in Stage 3A.
-export async function releaseHold(
-  pool: Database,
+export async function releaseHoldInTransaction(
+  db: PoolClient,
   organizationId: string,
   id: string,
 ) {
   z.uuid().parse(organizationId);
   z.uuid().parse(id);
-  return reservationTransaction(pool, async (db) => {
-    const target = (
-      await db.query(
-        `SELECT c.station_id,c.id AS connector_id FROM connector_reservations r
+  const target = (
+    await db.query(
+      `SELECT c.station_id,c.id AS connector_id FROM connector_reservations r
        JOIN connectors c ON c.id=r.connector_id JOIN stations s ON s.id=c.station_id
        WHERE r.id=$1 AND s.organization_id=$2`,
-        [id, organizationId],
-      )
-    ).rows[0];
-    if (!target) throw new HttpError(404, "Резерв не найден.");
-    const station = await db.query(
-      "SELECT id FROM stations WHERE id=$1 AND organization_id=$2 FOR SHARE",
-      [target.station_id, organizationId],
-    );
-    if (!station.rows.length) throw new HttpError(404, "Резерв не найден.");
-    const port = await db.query(
-      "SELECT id FROM connectors WHERE id=$1 AND station_id=$2 FOR UPDATE",
-      [target.connector_id, target.station_id],
-    );
-    if (!port.rows.length) throw new HttpError(404, "Резерв не найден.");
-    const row = (
+      [id, organizationId],
+    )
+  ).rows[0];
+  if (!target) throw new HttpError(404, "Резерв не найден.");
+  const station = await db.query(
+    "SELECT id FROM stations WHERE id=$1 AND organization_id=$2 FOR SHARE",
+    [target.station_id, organizationId],
+  );
+  if (!station.rows.length) throw new HttpError(404, "Резерв не найден.");
+  const port = await db.query(
+    "SELECT id FROM connectors WHERE id=$1 AND station_id=$2 FOR UPDATE",
+    [target.connector_id, target.station_id],
+  );
+  if (!port.rows.length) throw new HttpError(404, "Резерв не найден.");
+  const row = (
+    await db.query<ReservationRow>(
+      "SELECT * FROM connector_reservations WHERE id=$1 FOR UPDATE",
+      [id],
+    )
+  ).rows[0];
+  if (row.state === "confirmed")
+    throw new HttpError(409, "Подтверждённая бронь требует отдельной отмены.");
+  if (row.state === "held") {
+    const updated = (
       await db.query<ReservationRow>(
-        "SELECT * FROM connector_reservations WHERE id=$1 FOR UPDATE",
+        `UPDATE connector_reservations SET state=CASE WHEN expires_at<=clock_timestamp() THEN 'expired' ELSE 'released' END
+         WHERE id=$1 RETURNING *`,
         [id],
       )
     ).rows[0];
-    if (row.state === "confirmed")
-      throw new HttpError(
-        409,
-        "Подтверждённая бронь требует отдельной отмены.",
-      );
-    if (row.state === "held") {
-      const updated = (
-        await db.query<ReservationRow>(
-          `UPDATE connector_reservations SET state=CASE WHEN expires_at<=clock_timestamp() THEN 'expired' ELSE 'released' END
-         WHERE id=$1 RETURNING *`,
-          [id],
-        )
-      ).rows[0];
-      return dto(updated);
-    }
-    return dto(row);
-  });
+    return dto(updated);
+  }
+  return dto(row);
+}
+
+export function releaseHold(
+  pool: Database,
+  organizationId: string,
+  id: string,
+) {
+  return reservationTransaction(pool, (db) =>
+    releaseHoldInTransaction(db, organizationId, id),
+  );
 }

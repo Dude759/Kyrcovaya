@@ -1,6 +1,6 @@
 # Архитектура «Энерготранспорта»
 
-Версия 1.3, 26 октября 2026 года. Целевая архитектура. Foundation реализован и опубликован: Pages → Render HTTPS API → Neon PostgreSQL 17. [Публичная приёмка](testing/public-results.md). [Backend v0.2 / Reservation Core](testing/reservation-results.md) добавляет внутренние удержания и GET availability. Пользовательские брони после оплаты, ML, платежи, зарядные устройства и управление мощностью ниже остаются проектными компонентами.
+Версия 1.4, 26 октября 2026 года. Целевая архитектура. Foundation реализован и опубликован: Pages → Render HTTPS API → Neon PostgreSQL 17. [Публичная приёмка](testing/public-results.md). [Backend v0.2 / Reservation Core](testing/reservation-results.md) добавляет внутренние удержания и GET availability. Test Payments v0.3 реализует pending-заказ, attempts и подписанный inbox. Подтверждённая бронь после оплаты, зарядка, ML и управление мощностью остаются проектными компонентами.
 
 ## Компоненты и размещение
 
@@ -94,3 +94,9 @@ Frontend размещён на GitHub Pages, API — на Render Free, PostgreSQ
 HTTP-режим включается только после готовности необходимых API. Мок остаётся отдельным сценарием демонстрации и тестирования. Данные localStorage не импортируются на сервер как доверенные пользователи или платежи; миграции наполняют БД контролируемыми демонстрационными данными.
 
 Основания для проектных решений: [PostgreSQL: интервалы и exclusion constraints](https://www.postgresql.org/docs/17/rangetypes.html), [scikit-learn: временная проверка прогноза](https://scikit-learn.org/stable/auto_examples/applications/plot_time_series_lagged_features.html), [TimeSeriesSplit](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html).
+
+## Граница Test Payments 3B и финализации 3C
+
+[Протокол 3B](testing/payment-results.md): attempt=succeeded не означает подтверждённую бронь; payment остаётся pending с bookingId=null и исходным held TTL. Основной переход оформления закрыт до 3C. Описанная выше атомарная финализация payment + reservation + booking ещё не реализована.
+
+В 3B HTTPS форма адаптера создаёт подписанный event и доставляет его in-process через тот же verifier, что raw HTTP webhook. Сумма сверяется с серверным снимком. Внешнего банковского запроса внутри транзакции нет; деньги не списываются. Поздний success отмечается для будущей сверки и не продлевает hold.

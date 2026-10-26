@@ -4,6 +4,7 @@ import { HttpError } from "../../middleware/errors.js";
 import { authenticate } from "../auth/middleware.js";
 import { availabilityInput, validateInterval } from "./validation.js";
 import { databaseNow } from "./service.js";
+import { quote } from "./quote.js";
 
 export function availabilityRoutes(pool: Database) {
   const router = Router();
@@ -46,17 +47,17 @@ export function availabilityRoutes(pool: Database) {
         [station.id, start, end, station.operating_state, input.connector],
       )
     ).rows[0];
-    const energy = ports.available
-      ? Math.min(
-          ((ports.power * input.duration) / 60) * 0.65,
-          Number(profile.battery_capacity_kwh) * 0.3,
+    const estimate = ports.available
+      ? quote(
+          ports.power,
+          input.duration,
+          Number(profile.battery_capacity_kwh),
+          station.price_per_kwh_kopecks,
         )
       : null;
+    const energy = estimate?.energyKwh ?? null;
     // Same teaching estimate as the prototype, using server-owned profile/tariff and the lowest free port power.
-    const amountKopecks =
-      energy === null
-        ? null
-        : Math.round(energy * station.price_per_kwh_kopecks);
+    const amountKopecks = estimate?.amountKopecks ?? null;
     res.json({
       stationId: station.id,
       connector: input.connector,

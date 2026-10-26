@@ -59,3 +59,9 @@ Node.js 24 используется уже в сборке frontend; для back
 Сохраняем артефакты: версии миграций и seed, спецификацию API, сценарий нагрузки, происхождение ML-данных, параметры генератора, временные границы train/test, метрики baseline/model, журнал распределения мощности и снимки интерфейса. Так каждый технический вывод на защите можно показать, а не только пересказать.
 
 Контрольные документы: [требования](system-requirements.md), [архитектура](system-architecture.md), [БД](database-design.md), [API](frontend-api-contract.md).
+
+## Реализованный объём Stage 3B
+
+[Миграция 003](../backend/migrations/003_payments.sql), [OpenAPI](../backend/openapi/payments.yaml), [P00–P19](testing/payment-results.md). Неизменяемый заказ и отдельные attempts/events. POST payments атомарно создаёт pending/held/attempt с серверной ценой. User/key/request_hash защищают повторы; retry сохраняет заказ/порт/цену/TTL. Fail/cancel освобождают hold. Test provider выдаёт HTTPS страницу без карточных полей; HMAC inbox проверяет raw bytes, дедуплицирует event ID.
+
+Успех фиксируется только у попытки: payment=pending, bookingId=null. Весь процесс с payment=succeeded, confirmed reservation и booking впервые реализуется одной транзакцией в 3C. Поздний success сохраняется для будущей сверки; реального списания или возврата в 3B нет.

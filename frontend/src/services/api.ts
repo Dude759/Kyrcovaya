@@ -49,6 +49,7 @@ export async function request<T>(
   method = "GET",
   body?: unknown,
   anonymous = false,
+  extraHeaders: Record<string, string> = {},
 ): Promise<T> {
   if (apiMode === "mock") {
     return mockRequest<T>(path, method, body, getToken());
@@ -63,6 +64,7 @@ export async function request<T>(
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...extraHeaders,
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
@@ -129,10 +131,20 @@ export const api = {
     request<null>("/auth/password", "PATCH", { current, next }),
   book: (input: BookingInput) => request<Booking>("/bookings", "POST", input),
   checkout: (input: BookingInput, idempotencyKey: string) =>
-    request<Payment>("/payments", "POST", { input, idempotencyKey }),
+    apiMode === "mock"
+      ? request<Payment>("/payments", "POST", { input, idempotencyKey })
+      : request<Payment>("/payments", "POST", { input }, false, {
+          "Idempotency-Key": idempotencyKey,
+        }),
   payment: (id: string) => request<Payment>(`/payments/${id}`),
-  retryPayment: (id: string) =>
-    request<Payment>(`/payments/${id}/retry`, "POST"),
+  retryPayment: (id: string, key: string = crypto.randomUUID()) =>
+    request<Payment>(
+      `/payments/${id}/retry`,
+      "POST",
+      undefined,
+      false,
+      apiMode === "http" ? { "Idempotency-Key": key } : {},
+    ),
   cancelPayment: (id: string) =>
     request<Payment>(`/payments/${id}/cancel`, "POST"),
   simulatePayment: (id: string, outcome: "succeeded" | "failed") =>
