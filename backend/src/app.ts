@@ -63,7 +63,7 @@ export function createApp(
   );
   app.use(express.json({ limit: "16kb" }));
   app.get(["/health", "/api/health"], (_req, res) => {
-    res.json({ status: "ok", version: "0.3.0" });
+    res.json({ status: "ok", version: "0.4.0" });
   });
   app.get(["/ready", "/api/ready"], async (_req, res) => {
     try {
@@ -87,7 +87,7 @@ export function createApp(
     "/api",
     authenticate(pool),
     userRoutes(pool, config.PUBLIC_DEMO === "true"),
-    workspaceRoutes(pool),
+    workspaceRoutes(pool, paymentOptions),
   );
   app.use("/api/payments", paymentRoutes(pool, paymentOptions));
   app.use("/api/operator", operatorOnly, unavailable);

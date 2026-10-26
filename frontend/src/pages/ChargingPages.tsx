@@ -285,7 +285,7 @@ export function BookingPage() {
               <small>
                 {apiMode === "mock"
                   ? "Тестовый платёж · деньги не списываются"
-                  : "Способ оплаты сохраняется в брони. Платёжный сервис пока не подключён."}
+                  : "Тестовый провайдер · реальные деньги не списываются"}
               </small>
             </span>
           </div>
@@ -325,6 +325,13 @@ function BookingActions({ booking }: { booking: Booking }) {
     );
     if (result) navigate(`/driver/charging?session=${result.id}`);
   }
+  if (apiMode === "http")
+    return (
+      <p className="demo-note">
+        Бронь сохранена на сервере. Запуск зарядки и отмена подтверждённой брони
+        появятся в следующих версиях.
+      </p>
+    );
   return (
     <>
       <ErrorMessage message={action.error} />
@@ -409,7 +416,10 @@ export function PaymentResultPage() {
             </div>
             <div>
               <dt>Разъём</dt>
-              <dd>{booking.connector}</dd>
+              <dd>
+                {booking.connector}
+                {booking.connectorId && ` · порт ${booking.connectorId}`}
+              </dd>
             </div>
             <div>
               <dt>Продолжительность</dt>
@@ -445,7 +455,10 @@ export function BookingsPage() {
   const now = useNow();
   const unfinished = (data!.payments ?? []).filter(
     (p) =>
-      ["pending", "failed"].includes(p.status) && Date.parse(p.expiresAt) > now,
+      p.reconciliationRequired ||
+      !!p.refunds?.length ||
+      (["pending", "failed"].includes(p.status) &&
+        Date.parse(p.expiresAt) > now),
   );
   const bookings = data!.bookings.filter(
     (b) => filter === "all" || b.status === filter,
@@ -484,7 +497,16 @@ export function BookingsPage() {
           unfinished.map((p) => (
             <article className="record-card" key={p.id}>
               <span className="status status--service">
-                {p.status === "failed" ? "Оплата отклонена" : "Ожидает оплаты"}
+                {p.refunds?.length &&
+                p.refunds.every((r) => r.status === "succeeded")
+                  ? "Тестовый возврат подтверждён"
+                  : p.reconciliationRequired
+                    ? "Требуется сверка / возврат"
+                    : p.status === "failed"
+                      ? "Оплата отклонена"
+                      : p.awaitingFinalization
+                        ? "Ожидает завершения операции"
+                        : "Ожидает оплаты"}
               </span>
               <h2>
                 {data!.stations.find((s) => s.id === p.input.stationId)?.name}
@@ -492,7 +514,12 @@ export function BookingsPage() {
               <p>
                 {dateTime(p.input.start)} · {p.input.duration} мин
               </p>
-              <p>Бронь ещё не подтверждена · {money(p.amount)}</p>
+              <p>
+                {p.bookingId
+                  ? "Основная бронь подтверждена"
+                  : "Бронь ещё не подтверждена"}{" "}
+                · {money(p.amount)}
+              </p>
               <Link
                 className="button button--outline"
                 to={`/driver/checkout/${p.id}`}
@@ -519,7 +546,10 @@ export function BookingsPage() {
             <dl className="details-list">
               <div>
                 <dt>Разъём</dt>
-                <dd>{b.connector}</dd>
+                <dd>
+                  {b.connector}
+                  {b.connectorId && ` · порт ${b.connectorId}`}
+                </dd>
               </div>
               <div>
                 <dt>Предварительно</dt>

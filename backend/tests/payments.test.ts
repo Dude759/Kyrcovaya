@@ -176,10 +176,7 @@ before(async () => {
 });
 beforeEach(async () => {
   // Only our random isolated _test schema; never production data.
-  await pool.query("DELETE FROM payment_events");
-  await pool.query("DELETE FROM payment_attempts");
-  await pool.query("DELETE FROM connector_reservations");
-  await pool.query("DELETE FROM payments");
+  await pool.query("TRUNCATE payments,connector_reservations CASCADE");
   await pool.query("UPDATE driver_profiles SET battery_capacity_kwh=75");
   await pool.query("UPDATE stations SET price_per_kwh_kopecks=1800");
 });
@@ -194,7 +191,7 @@ test("P00: 003 applies and repeats; tables, unique/FK constraints and CORS heade
   assert.equal(
     (await pool.query("SELECT count(*)::int AS n FROM schema_migrations"))
       .rows[0].n,
-    3,
+    4,
   );
   await assert.rejects(
     pool.query(
@@ -477,22 +474,22 @@ test("P09: failure releases hold; an old attempt event cannot release the retry'
   assert.equal(current.status, "failed");
   assert.equal(current.reservation.state, "released");
 });
-test("P10: signed success resolves attempt only; payment stays pending and booking remains absent", async () => {
+test("P10: signed success now atomically confirms booking; unpaid success remains forbidden", async () => {
   const p = await create(),
     result = await event(p, "succeeded");
   assert.equal(result.status, 200);
-  assert.equal(result.data.result, "awaiting_booking");
+  assert.equal(result.data.result, "finalized");
   const current = (
     await request(`/api/payments/${p.id}`, "GET", undefined, driver)
   ).data;
   assert.equal(current.attempt.status, "succeeded");
-  assert.equal(current.status, "pending");
-  assert.equal(current.awaitingFinalization, true);
-  assert.equal(current.bookingId, null);
+  assert.equal(current.status, "succeeded");
+  assert.equal(current.awaitingFinalization, false);
+  assert(current.bookingId);
   assert.equal(current.confirmationUrl, undefined);
-  assert.equal(current.reservation.state, "held");
+  assert.equal(current.reservation.state, "confirmed");
   await assert.rejects(
-    pool.query("UPDATE payments SET status='succeeded' WHERE id=$1", [p.id]),
+    pool.query("UPDATE payments SET booking_id=NULL WHERE id=$1", [p.id]),
     isCode("23514"),
   );
   assert.equal(
@@ -724,7 +721,10 @@ test("P14: expired payment and hold are finalized lazily; expiry survives reject
   }
   const other = await create(input("solo-pay"), driver2);
   assert.equal(other.reservation.connectorId, p.reservation.connectorId);
-  assert.equal((await event(p, "succeeded")).data.result, "late_success");
+  assert.equal(
+    (await event(p, "succeeded")).data.result,
+    "compensation_pending",
+  );
   const old = (await request(`/api/payments/${p.id}`, "GET", undefined, driver))
     .data;
   assert.equal(old.status, "failed");
@@ -799,16 +799,13 @@ test("P15: real process restart between order creation and signed event preserve
     assert.equal(replay.data.id, p.id);
     assert.equal(replay.data.reservation.id, p.reservation.id);
     const id = randomUUID();
-    assert.equal(
-      (await event(p, "succeeded", id)).data.result,
-      "awaiting_booking",
-    );
+    assert.equal((await event(p, "succeeded", id)).data.result, "finalized");
     assert.equal((await event(p, "succeeded", id)).data.duplicate, true);
     const current = (
       await request(`/api/payments/${p.id}`, "GET", undefined, driver)
     ).data;
-    assert.equal(current.status, "pending");
-    assert.equal(current.awaitingFinalization, true);
+    assert.equal(current.status, "succeeded");
+    assert.equal(current.awaitingFinalization, false);
     assert.deepEqual(await counts(), {
       payments: 1,
       attempts: 1,
@@ -826,7 +823,7 @@ test("P16: provider HTTPS confirmation page has no card fields; signed form deli
     path = url.pathname + url.search;
   const page = await request(path);
   assert.equal(page.status, 200);
-    assert.equal(page.headers.get("referrer-policy"), "strict-origin");
+  assert.equal(page.headers.get("referrer-policy"), "strict-origin");
   assert.match(page.data, /Деньги не списываются/);
   assert(!/<input[^>]+name="(?:card|cvv|pan)/.test(page.data));
   assert.equal((await counts()).events, 0);
@@ -859,10 +856,10 @@ test("P16: provider HTTPS confirmation page has no card fields; signed form deli
   assert.equal(
     (await request(`/api/payments/${p.id}`, "GET", undefined, driver)).data
       .awaitingFinalization,
-    true,
+    false,
   );
 });
-test("P17: provider success does not extend TTL; expiry marks reconciliation without creating a booking", async () => {
+test("P17: finalized booking survives the original hold TTL without extending its snapshot", async () => {
   const short = await startServer(1),
     previous = base;
   try {
@@ -878,10 +875,10 @@ test("P17: provider success does not extend TTL; expiry marks reconciliation wit
     const current = (
       await request(`/api/payments/${p.id}`, "GET", undefined, driver)
     ).data;
-    assert.equal(current.status, "failed");
-    assert.equal(current.reconciliationRequired, true);
-    assert.equal(current.reservation.state, "expired");
-    assert.equal(current.bookingId, null);
+    assert.equal(current.status, "succeeded");
+    assert.equal(current.reconciliationRequired, false);
+    assert.equal(current.reservation.state, "confirmed");
+    assert(current.bookingId);
   } finally {
     base = previous;
     await stopServer(short.server);
@@ -914,15 +911,16 @@ test("P19: cancel racing provider success has one coherent outcome, never a succ
   const current = (
     await request(`/api/payments/${p.id}`, "GET", undefined, driver)
   ).data;
-  assert.equal(current.bookingId, null);
   assert.equal(current.providerSuccessReceived, true);
   if (cancel.status === 200) {
-    assert.equal(current.status, "cancelled");
+    assert.equal(current.status, "failed");
     assert.equal(current.reservation.state, "released");
     assert.equal(current.reconciliationRequired, true);
+    assert.equal(current.bookingId, null);
   } else {
-    assert.equal(current.status, "pending");
-    assert.equal(current.reservation.state, "held");
-    assert.equal(current.awaitingFinalization, true);
+    assert(current.bookingId);
+    assert.equal(current.status, "succeeded");
+    assert.equal(current.reservation.state, "confirmed");
+    assert.equal(current.awaitingFinalization, false);
   }
 });

@@ -25,6 +25,9 @@ export type Preferences = {
   reports: boolean;
 };
 export type Booking = {
+  paymentId?: string;
+  reservationId?: string;
+  connectorId?: string;
   id: string;
   userId: string;
   stationId: string;
@@ -72,7 +75,7 @@ export type Forecast = {
   points: { time: string; powerKw: number }[];
 };
 export type Snapshot = {
-  stage?: "foundation";
+  stage?: "foundation" | "bookings";
   stations: Station[];
   bookings: Booking[];
   sessions: Session[];
@@ -106,6 +109,15 @@ export type Payment = {
   providerSuccessReceived?: boolean;
   awaitingFinalization?: boolean;
   reconciliationRequired?: boolean;
+  finalizationReason?: string | null;
+  refunds?: {
+    id: string;
+    status: "pending" | "submitted" | "succeeded";
+    reason: string;
+    amount: number;
+    confirmedAt: string | null;
+    test: boolean;
+  }[];
   attempt?: {
     id: string;
     number: number;

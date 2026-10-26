@@ -90,3 +90,7 @@ R00 отдельно проверяет extension/миграцию/типы; R13
 [Фактические P00–P19](payment-results.md), [тесты](../../backend/tests/payments.test.ts). PostgreSQL 17, отдельная _test БД и случайные схемы: миграция/FK, серверная цена/неизменяемость, Idempotency-Key/hash, параллельные запросы одного ключа и конкуренция за последний порт, retry/cancel/fail, raw HMAC, повтор event, чужие объекты, expiry и рестарт между заказом и событием. Дополнительно: поздний success и гонка cancel/success.
 
 Критерий 3B: success только у attempt; payment=pending, bookingId=null, POST bookings закрыт. 50 backend + 54 frontend не заменяют публикацию: CI → merge → автоматические Render/Pages → smoke `--reservations --payments` и визуальная проверка.
+
+## Stage 3C — Atomic Booking Finalization
+
+[Протокол F00–F20](booking-finalization-results.md), [тесты](../../backend/tests/finalization.test.ts). Проверяются одна confirmed booking, дубликаты и конкурентные success events, точный снимок физического порта, настоящий рестарт, rollback после вставки, TTL после ожидания locks, поздний success освобождённого порта, сохранение чужой брони, старые awaiting_booking, submitted/receipt/recovery и ложный ответ адаптера. Новые UI-тесты проверяют HTTP переход, reload, сетевое чтение, pending и completed refund. Старые 50 backend/54 frontend-сценария сохранены; временные success-ожидания 3B обновлены под новую финализацию. Рабочая Neon не используется для конкурентных испытаний.

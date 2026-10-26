@@ -102,7 +102,7 @@ function page(
   return `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Тестовая оплата — Энерготранспорт</title>
   <style>body{font:16px/1.6 system-ui,sans-serif;background:#f2f4f2;color:#172b25;margin:0;padding:48px 20px}main{max-width:580px;margin:0 auto;background:white;border:1px solid #d7ded9;border-radius:12px;padding:32px}h1{font-size:28px;line-height:1.2}small{color:#77642f}strong{font-size:30px}button{font:inherit;cursor:pointer;border:1px solid #c5d2c9;background:white;color:#133e2f;padding:12px 18px;border-radius:6px;margin:5px 5px 0 0}button:first-of-type{background:#176c4b;color:white;border-color:#176c4b}.note{color:#5a6660;font-size:14px}</style>
   <main><small>УЧЕБНЫЙ СТЕНД · ТЕСТОВЫЙ ПРОВАЙДЕР</small><h1>Тестовая оплата</h1><strong>${(amount / 100).toFixed(2)} ₽</strong><p role="status">${message}</p>
-  <p class="note">Деньги не списываются. Номер карты и CVV не нужны. На этом этапе результат провайдера сохраняется отдельно; подтверждённая бронь ещё не создаётся.</p>
+  <p class="note">Деньги не списываются. Номер карты и CVV не нужны. Сервер подтверждает бронь только при действующем удержании порта. При позднем ответе может потребоваться тестовый возврат.</p>
   ${canAct ? `<form method="post" action="/api/test-payments/${attemptId}"><input type="hidden" name="token" value="${token}"><button name="outcome" value="succeeded">Симулировать успех</button><button name="outcome" value="failed">Симулировать отказ</button><button name="outcome" value="cancelled">Отменить</button></form>` : ""}
   <p class="note">Можно закрыть эту вкладку и проверить статус в приложении.</p></main></html>`;
 }
@@ -129,13 +129,15 @@ export function testProviderRoutes(pool: Database, options?: PaymentOptions) {
       .send(
         page(
           p.amountKopecks,
-          p.awaitingFinalization
-            ? "Результат провайдера принят. Ожидается этап подтверждения брони."
-            : p.reconciliationRequired
-              ? "Результат сохранён для последующей сверки. Повторять оплату не нужно."
-              : active
-                ? "Выберите результат тестовой попытки."
-                : "Эта попытка уже завершена или срок ожидания истёк.",
+          p.status === "succeeded"
+            ? "Тестовая оплата принята, бронь подтверждена. Откройте раздел бронирований в приложении."
+            : p.awaitingFinalization
+              ? "Результат провайдера принят. Ожидается этап подтверждения брони."
+              : p.reconciliationRequired
+                ? "Результат сохранён для последующей сверки. Повторять оплату не нужно."
+                : active
+                  ? "Выберите результат тестовой попытки."
+                  : "Эта попытка уже завершена или срок ожидания истёк.",
           id,
           String(req.query.token),
           active,
@@ -181,8 +183,8 @@ export function testProviderRoutes(pool: Database, options?: PaymentOptions) {
         .send(
           page(
             state.payment.amountKopecks,
-            result.result === "awaiting_booking"
-              ? "Тестовый успех принят. Финализация и создание брони появятся на следующем этапе."
+            result.result === "finalized"
+              ? "Тестовая оплата принята, бронь подтверждена. Откройте раздел бронирований в приложении."
               : "Тестовое событие сохранено. Проверьте обновлённый статус платежа.",
             id,
             input.token,

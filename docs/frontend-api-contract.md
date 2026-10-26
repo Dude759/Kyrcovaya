@@ -145,3 +145,11 @@ POST `/operator/forecast` → `Forecast|null` обновляет прогноз.
 Для backend `POST /payments` получает тот же вход, но временно удерживает конкретный порт. Это **целевое отличие от mock**, где pending-платёж ничего не резервирует. Оплата должна завершиться до меньшего из 15 минут и времени начала брони. Внешний callback атомарно превращает удержание в бронь; поздний успех с конфликтом запускает возврат. `POST /bookings` не используется для обхода платежа: в первом платёжном backend он отклоняется, создание оплаченной брони — внутренняя операция сервисного слоя.
 
 Внутренние состояния booking expired, session starting/stopping/failed, refund pending/succeeded/failed и телеметрия simulator требуют явного расширения frontend. Текущее ограничение лимита станции 120–600 и сети 2000–8000 — правила демоверсии, а не целевого оборудования. Установленная мощность, операторский лимит, доступный сетевой бюджет и фактическая нагрузка хранятся/возвращаются раздельно.
+
+## HTTP v0.4 — текущая финализация 3C
+
+[OpenAPI](../backend/openapi/payments.yaml), [протокол](testing/booking-finalization-results.md). Этот раздел заменяет временную границу HTTP v0.3 выше: provider success с действующим held атомарно даёт payment.succeeded, reservation.confirmed и единственную booking. bookingId заполнен; подтверждённая бронь не исчезает по старому expiresAt платежа. Прямой POST /bookings остаётся 501.
+
+Driver workspace: stage=bookings, собственные payments и bookings (по 100 последних), sessions/events пустые, forecast=null. Booking дополнен paymentId, reservationId, connectorId; amount — предварительная тестовая сумма, не окончательная стоимость энергии. Operator workspace остаётся foundation без чужой водительской истории.
+
+Payment дополнен finalizationReason и refunds[{id,status,reason,amount,confirmedAt,test}]. Refund pending/submitted не выполнен; succeeded допустим только при квитанции test adapter. Поздний success не восстанавливает резерв. requiresReconciliation снимается после подтверждения всех компенсаций, история причины остаётся. Checkout продолжает чтение незавершённого результата и возврата, обновляет workspace и переходит к своим броням. Reload, повторный login и возврат к pending доступны из workspace. Зарядка и отмена confirmed booking ещё закрыты.

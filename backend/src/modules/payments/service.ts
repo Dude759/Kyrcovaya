@@ -11,6 +11,7 @@ import {
 import { validateInterval } from "../reservations/validation.js";
 import { quote } from "../reservations/quote.js";
 import { idempotencyKey, paymentInput, providerEvent } from "./validation.js";
+import { finalizePayment, recoverCompensation } from "./finalization.js";
 import {
   confirmationUrl,
   hash,
@@ -88,10 +89,33 @@ async function expire(db: PoolClient, p: Row): Promise<Row> {
     )
   ).rows[0];
 }
-async function dto(db: PoolClient, p: Row, options: PaymentOptions) {
+export async function paymentDto(
+  db: PoolClient,
+  p: Row,
+  options?: PaymentOptions,
+) {
   const a = await latest(db, p.id),
     r = await reservation(db, p.id);
   const providerSuccess = Boolean(p.provider_success_received_at);
+  const finalizationMessages: Record<string, string> = {
+    hold_expired:
+      "Удержание порта истекло. Результат провайдера сохранён для тестового возврата.",
+    hold_released:
+      "Порт уже освобождён. Результат провайдера сохранён для тестового возврата.",
+    port_unavailable:
+      "Порт стал недоступен. Бронь не подтверждена; требуется тестовый возврат.",
+    port_conflict: "Порт занят другим резервом. Требуется тестовый возврат.",
+    attempt_not_current:
+      "Получен успех предыдущей попытки. Требуется сверка и тестовый возврат.",
+    extra_success:
+      "Получен успех дополнительной попытки. Основная бронь сохранена; лишняя попытка компенсируется.",
+  };
+  const refunds = (
+    await db.query(
+      "SELECT id,status,reason,amount_kopecks,confirmed_at FROM payment_compensations WHERE payment_id=$1 ORDER BY created_at",
+      [p.id],
+    )
+  ).rows;
   return {
     id: p.id,
     userId: p.user_id,
@@ -107,11 +131,21 @@ async function dto(db: PoolClient, p: Row, options: PaymentOptions) {
     tariffKopecks: p.quoted_tariff_kopecks,
     estimatedEnergyKwh: Number(p.quoted_energy_kwh),
     status: p.status,
-    bookingId: null,
+    bookingId: p.booking_id,
+    finalizationReason: p.finalization_reason,
+    refunds: refunds.map((r) => ({
+      id: r.id,
+      status: r.status,
+      reason: r.reason,
+      amount: Number(r.amount_kopecks) / 100,
+      confirmedAt: r.confirmed_at?.toISOString() ?? null,
+      test: true,
+    })),
     createdAt: p.created_at.toISOString(),
     expiresAt: p.expires_at.toISOString(),
-    failure:
-      p.failure_code === "expired"
+    failure: p.finalization_reason
+      ? finalizationMessages[p.finalization_reason]
+      : p.failure_code === "expired"
         ? "Время тестовой оплаты истекло."
         : p.failure_code === "provider_failed"
           ? "Тестовый провайдер отклонил попытку."
@@ -125,7 +159,10 @@ async function dto(db: PoolClient, p: Row, options: PaymentOptions) {
     reconciliationRequired: p.requires_reconciliation,
     attempt: { id: a.id, number: a.attempt_no, status: a.status },
     reservation: { id: r.id, connectorId: r.connector_id, state: r.state },
-    ...(p.status === "pending" && !providerSuccess && a.status === "pending"
+    ...(options &&
+    p.status === "pending" &&
+    !providerSuccess &&
+    a.status === "pending"
       ? { confirmationUrl: confirmationUrl(options, a.id, a.confirmation_url) }
       : {}),
   };
@@ -187,7 +224,7 @@ export async function createPayment(
         throw new HttpError(409, "Ключ уже использован для другого заказа.");
       return {
         created: false,
-        payment: await dto(db, await expire(db, existing), options),
+        payment: await paymentDto(db, await expire(db, existing), options),
       };
     }
     const start = new Date(input.start),
@@ -263,7 +300,7 @@ export async function createPayment(
       [held.id, id],
     );
     await newAttempt(db, options, id, 1, null);
-    return { created: true, payment: await dto(db, p, options) };
+    return { created: true, payment: await paymentDto(db, p, options) };
   });
 }
 export function getPayment(
@@ -273,7 +310,7 @@ export function getPayment(
   id: string,
 ) {
   return work(pool, async (db) =>
-    dto(db, await expire(db, await lockOrder(db, id, userId)), options),
+    paymentDto(db, await expire(db, await lockOrder(db, id, userId)), options),
   );
 }
 export async function retryPayment(
@@ -290,7 +327,7 @@ export async function retryPayment(
       "SELECT id FROM payment_attempts WHERE payment_id=$1 AND retry_key=$2",
       [id, retryKey],
     );
-    if (replay.rows.length) return dto(db, p, options);
+    if (replay.rows.length) return paymentDto(db, p, options);
     if (
       p.status !== "failed" ||
       p.failure_code !== "provider_failed" ||
@@ -324,7 +361,7 @@ export async function retryPayment(
         [id],
       )
     ).rows[0];
-    return dto(db, updated, options);
+    return paymentDto(db, updated, options);
   });
   if (result instanceof HttpError) throw result;
   return result;
@@ -343,14 +380,14 @@ export async function cancelPayment(
         "Результат провайдера уже получен; требуется финализация.",
       );
     if (p.status === "cancelled" || p.failure_code === "expired")
-      return dto(db, p, options);
+      return paymentDto(db, p, options);
     const r = await reservation(db, id);
     await releaseHoldInTransaction(db, p.organization_id, r.id);
     await db.query(
       "UPDATE payment_attempts SET status='cancelled',resolved_at=clock_timestamp() WHERE payment_id=$1 AND status='pending'",
       [id],
     );
-    return dto(
+    return paymentDto(
       db,
       (
         await db.query(
@@ -397,79 +434,92 @@ export async function processSignedEvent(
       VALUES ($1,$2,$3,$4,'received') ON CONFLICT(provider,provider_event_id) DO NOTHING RETURNING id`,
       [a.id, event.providerEventId, event.outcome, requestHash],
     );
-    if (!inserted.rows.length) {
-      const old = (
-        await db.query(
-          "SELECT request_hash FROM payment_events WHERE provider='test' AND provider_event_id=$1",
-          [event.providerEventId],
-        )
-      ).rows[0];
-      if (old.request_hash !== requestHash)
-        throw new HttpError(409, "ID события уже имеет другое содержимое.");
-      return { received: true, duplicate: true };
-    }
-    p = await expire(db, p);
-    const current = (
-      await db.query("SELECT * FROM payment_attempts WHERE id=$1 FOR UPDATE", [
-        a.id,
-      ])
+    const stored = (
+      await db.query(
+        "SELECT * FROM payment_events WHERE provider='test' AND provider_event_id=$1",
+        [event.providerEventId],
+      )
     ).rows[0];
+    if (stored.request_hash !== requestHash)
+      throw new HttpError(409, "ID события уже имеет другое содержимое.");
+    const duplicate = !inserted.rows.length;
+    if (
+      duplicate &&
+      !["awaiting_booking", "late_success", "received"].includes(stored.result)
+    )
+      return { received: true, duplicate: true, result: stored.result };
     let result = "ignored_terminal";
     if (event.outcome === "succeeded") {
+      result = await finalizePayment(db, p.id, stored.id);
+    } else {
+      p = await expire(db, p);
+      const current = (
+        await db.query(
+          "SELECT * FROM payment_attempts WHERE id=$1 FOR UPDATE",
+          [a.id],
+        )
+      ).rows[0];
       if (
         !p.provider_success_received_at &&
         p.status === "pending" &&
         current.status === "pending"
       ) {
-        await db.query(
-          "UPDATE payment_attempts SET status='succeeded',resolved_at=clock_timestamp() WHERE id=$1",
-          [a.id],
-        );
-        await db.query(
-          "UPDATE payments SET provider_success_received_at=clock_timestamp() WHERE id=$1",
-          [p.id],
-        );
-        result = "awaiting_booking";
-      } else if (!p.provider_success_received_at) {
-        await db.query(
-          "UPDATE payments SET provider_success_received_at=clock_timestamp(),requires_reconciliation=true,status=CASE WHEN status='pending' THEN 'failed' ELSE status END,failure_code=COALESCE(failure_code,'provider_failed') WHERE id=$1",
-          [p.id],
-        );
-        await db.query(
-          "UPDATE payment_attempts SET status='cancelled',resolved_at=clock_timestamp() WHERE payment_id=$1 AND status='pending'",
-          [p.id],
-        );
         const r = await reservation(db, p.id);
         await releaseHoldInTransaction(db, p.organization_id, r.id);
-        result = "late_success";
+        await db.query(
+          "UPDATE payment_attempts SET status=$2,resolved_at=clock_timestamp() WHERE id=$1",
+          [a.id, event.outcome],
+        );
+        await db.query(
+          "UPDATE payments SET status=$2,failure_code=$3 WHERE id=$1",
+          [
+            p.id,
+            event.outcome,
+            event.outcome === "failed" ? "provider_failed" : "cancelled",
+          ],
+        );
+        result = "applied";
       }
-    } else if (
-      !p.provider_success_received_at &&
-      p.status === "pending" &&
-      current.status === "pending"
-    ) {
-      const r = await reservation(db, p.id);
-      await releaseHoldInTransaction(db, p.organization_id, r.id);
-      await db.query(
-        "UPDATE payment_attempts SET status=$2,resolved_at=clock_timestamp() WHERE id=$1",
-        [a.id, event.outcome],
-      );
-      await db.query(
-        "UPDATE payments SET status=$2,failure_code=$3 WHERE id=$1",
-        [
-          p.id,
-          event.outcome,
-          event.outcome === "failed" ? "provider_failed" : "cancelled",
-        ],
-      );
-      result = "applied";
     }
     await db.query(
       "UPDATE payment_events SET result=$2,processed_at=clock_timestamp() WHERE id=$1",
-      [inserted.rows[0].id, result],
+      [stored.id, result],
     );
-    return { received: true, duplicate: false, result };
+    return { received: true, duplicate, result };
   });
+}
+
+// Bounded recovery runs on boot and periodically in the existing API process. Durable rows survive sleep/restart.
+export async function recoverPayments(pool: Database) {
+  const events = (
+    await pool.query(
+      "SELECT e.id,a.payment_id FROM payment_events e JOIN payment_attempts a ON a.id=e.attempt_id WHERE e.kind='succeeded' AND e.result IN ('awaiting_booking','late_success','received') ORDER BY e.received_at LIMIT 20",
+    )
+  ).rows;
+  for (const e of events)
+    await work(pool, async (db) => {
+      await lockOrder(db, e.payment_id);
+      const current = (
+        await db.query("SELECT result FROM payment_events WHERE id=$1", [e.id])
+      ).rows[0];
+      if (
+        !["awaiting_booking", "late_success", "received"].includes(
+          current.result,
+        )
+      )
+        return;
+      const result = await finalizePayment(db, e.payment_id, e.id);
+      await db.query(
+        "UPDATE payment_events SET result=$2,processed_at=clock_timestamp() WHERE id=$1",
+        [e.id, result],
+      );
+    });
+  const refunds = (
+    await pool.query(
+      "SELECT id FROM payment_compensations WHERE status<>'succeeded' ORDER BY created_at LIMIT 20",
+    )
+  ).rows;
+  for (const c of refunds) await recoverCompensation(pool, c.id);
 }
 
 export async function checkoutState(
@@ -485,7 +535,7 @@ export async function checkoutState(
     if (!a) throw new HttpError(404, "Попытка не найдена.");
     const p = await expire(db, await lockOrder(db, a.payment_id));
     return {
-      payment: await dto(db, p, options),
+      payment: await paymentDto(db, p, options),
       providerPaymentId: a.provider_payment_id,
       expired: p.expires_at <= (await databaseNow(db)),
     };
