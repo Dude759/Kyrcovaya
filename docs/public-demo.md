@@ -22,6 +22,8 @@ Web service energotransport-api-dude759 создан в подтверждённ
 
 Одного значения autoDeploy=yes недостаточно для приёмки. Сервис, созданный по публичному Git URL, сначала нужно связать с GitHub через Repository в настройках Render. После подключения проверяется следующий merge: в истории Render должен появиться deploy с тем же commit, причиной автоматического запуска и итогом live. Ручной redeploy проверяет сохранность данных, но не доказывает работу автоматической доставки. Итог этой проверки фиксируется в связанном с [публичным протоколом](testing/public-results.md) PR.
 
+Дополнительное условие — установленное GitHub App Render с доступом к Kyrcovaya. Вход в Render через GitHub и поле Git Credentials сами по себе не подтверждают установку приложения. Проверка: GitHub → Settings → Applications → Installed GitHub Apps → Render → Configure → Repository access. Достаточно разрешить один репозиторий Kyrcovaya. В данном стенде отсутствие Render в Installed GitHub Apps было обнаружено по скриншоту пользователя; после установки проводится новый выпуск через PR. Deploy Hook остаётся секретом и для этой схемы не нужен.
+
 | Настройка | Значение |
 | --- | --- |
 | Репозиторий / ветка | Dude759/Kyrcovaya / main |
