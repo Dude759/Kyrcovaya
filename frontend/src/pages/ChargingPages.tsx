@@ -52,6 +52,21 @@ export function BookingPage() {
   const [payment, setPayment] = useState<"card" | "sbp">("card");
   const [open, setOpen] = useState(false);
   const paymentAttempt = useRef({ signature: "", key: crypto.randomUUID() });
+  if (data?.stage === "foundation")
+    return (
+      <AppShell
+        role="driver"
+        active="bookings"
+        title="Новая бронь"
+        subtitle="Серверная версия"
+      >
+        <EmptyState
+          title="Бронирование пока недоступно"
+          text="В этой версии доступны каталог и профиль. Бронирование и оплата подключаются следующим этапом."
+          to="/driver/stations"
+        />
+      </AppShell>
+    );
   if (!station)
     return (
       <AppShell
@@ -68,7 +83,7 @@ export function BookingPage() {
     !!connector?.available && !["offline", "service"].includes(station.status);
   const estimatedEnergy = Math.min(
     (((connector?.powerKw ?? 0) * duration) / 60) * 0.65,
-    user!.battery * 0.3,
+    (user!.battery ?? 0) * 0.3,
   );
   const amount = Math.round(estimatedEnergy * station.pricePerKwh);
   const start = `${date}T${time}:00+03:00`;

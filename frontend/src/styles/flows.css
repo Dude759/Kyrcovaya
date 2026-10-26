@@ -1,3 +1,30 @@
+/* Keep a growing database catalog from stretching the map below the viewport. */
+@media (min-width: 761px) {
+  .app-content--foundation .stations-layout {
+    height: max(480px, calc(100dvh - 240px));
+    min-height: 0;
+  }
+  .app-content--foundation .station-results {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .app-content--foundation .station-results > :not(.station-list) {
+    flex-shrink: 0;
+  }
+  .app-content--foundation .station-list {
+    overflow-y: auto;
+    min-height: 0;
+    padding-right: 4px;
+  }
+  .app-content--foundation .station-card {
+    flex-shrink: 0;
+  }
+  .app-content--foundation .map-canvas {
+    min-height: 0;
+  }
+}
+
 .route-state {
   min-height: 100vh;
   display: flex;

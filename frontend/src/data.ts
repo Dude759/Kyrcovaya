@@ -16,6 +16,7 @@ export type Station = {
   status: StationStatus;
   loadPercent: number | null;
   limitKw: number;
+  maxPowerKw?: number;
   pricePerKwh: number;
   connectors: Connector[];
 };

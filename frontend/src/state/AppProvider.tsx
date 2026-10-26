@@ -2,7 +2,7 @@ import { Context, useApp } from "./context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { api, getToken, setToken } from "../services/api";
+import { api, apiMode, getToken, setToken } from "../services/api";
 import { ApiError, errorMessage } from "../services/errors";
 import type { AuthResult, Role, Snapshot, User } from "../types/domain";
 
@@ -128,6 +128,9 @@ export function ProtectedRoute({ role }: { role: Role }) {
     return (
       <div className="route-state" role="status">
         Загружаем рабочую область…
+        {apiMode === "http" && (
+          <p>Первое подключение после перерыва может занять около минуты.</p>
+        )}
       </div>
     );
   if (error && !data)

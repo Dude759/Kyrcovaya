@@ -36,6 +36,38 @@ it("отправляет авторизацию и JSON на выбранный 
     }),
   );
 });
+it("загружает все страницы серверного каталога без подстановки локальных станций", async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          items: [{ id: "database-a" }],
+          nextCursor: "database-a",
+        }),
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ items: [{ id: "database-b" }], nextCursor: null }),
+      ),
+    );
+  vi.stubGlobal("fetch", fetchMock);
+  const { api } = await import("../src/services/api");
+  expect((await api.stations()).map((s) => s.id)).toEqual([
+    "database-a",
+    "database-b",
+  ]);
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+    "/api/stations?limit=200",
+    "/api/stations?limit=200&cursor=database-a",
+  ]);
+});
+it("не подменяет недоступный серверный каталог локальным mock", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+  const { api } = await import("../src/services/api");
+  await expect(api.stations()).rejects.toMatchObject({ status: 503 });
+});
 it("поддерживает ответ без тела после выхода", async () => {
   vi.stubGlobal(
     "fetch",
@@ -116,4 +148,31 @@ it("прерывает запрос, когда сервер не отвечае
   });
   await vi.advanceTimersByTimeAsync(15000);
   await assertion;
+});
+
+it("для публичного стенда ждёт холодный запуск и не повторяет POST автоматически", async () => {
+  vi.stubEnv("VITE_API_TIMEOUT_MS", "90000");
+  vi.useFakeTimers();
+  const fetchMock = vi.fn().mockImplementation(
+    (_url, options) =>
+      new Promise((_resolve, reject) => {
+        options.signal.addEventListener("abort", () =>
+          reject(new DOMException("Aborted", "AbortError")),
+        );
+      }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  const { api } = await import("../src/services/api");
+  const assertion = expect(
+    api.login({
+      email: "demo@example.test",
+      password: "fixture",
+      role: "driver",
+    }),
+  ).rejects.toMatchObject({ status: 503 });
+  await vi.advanceTimersByTimeAsync(15000);
+  expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(false);
+  await vi.advanceTimersByTimeAsync(75000);
+  await assertion;
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });

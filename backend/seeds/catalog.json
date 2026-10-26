@@ -1,0 +1,117 @@
+[
+  {
+    "id": "tverskaya-plaza",
+    "name": "Тверская Plaza",
+    "address": "ул. Тверская, 22",
+    "district": "Тверской район",
+    "coordinates": [37.6042, 55.7664],
+    "maxPowerKw": 600,
+    "limitKw": 420,
+    "price": 18,
+    "state": "online",
+    "ports": [
+      ["CCS2", 150, 4],
+      ["CHAdeMO", 100, 2],
+      ["Type 2", 22, 2]
+    ]
+  },
+  {
+    "id": "khodynka",
+    "name": "Заряд Ходынка",
+    "address": "Ходынский б-р, 4",
+    "district": "Хорошёвский район",
+    "coordinates": [37.5312, 55.7905],
+    "maxPowerKw": 480,
+    "limitKw": 360,
+    "price": 16,
+    "state": "online",
+    "ports": [
+      ["CCS2", 120, 4],
+      ["Type 2", 22, 4]
+    ]
+  },
+  {
+    "id": "city-hub",
+    "name": "Сити Hub",
+    "address": "Пресненская наб., 8",
+    "district": "Пресненский район",
+    "coordinates": [37.5377, 55.7472],
+    "maxPowerKw": 900,
+    "limitKw": 600,
+    "price": 21,
+    "state": "online",
+    "ports": [
+      ["CCS2", 250, 6],
+      ["CHAdeMO", 100, 2]
+    ]
+  },
+  {
+    "id": "leningradskaya",
+    "name": "Ленинградская 14",
+    "address": "Ленинградское ш., 14",
+    "district": "Войковский район",
+    "coordinates": [37.4936, 55.8182],
+    "maxPowerKw": 240,
+    "limitKw": 240,
+    "price": 17,
+    "state": "offline",
+    "ports": [["CCS2", 120, 2]]
+  },
+  {
+    "id": "south-terminal",
+    "name": "Южный терминал",
+    "address": "Варшавское ш., 132",
+    "district": "Чертаново Северное",
+    "coordinates": [37.6066, 55.6198],
+    "maxPowerKw": 720,
+    "limitKw": 480,
+    "price": 17,
+    "state": "online",
+    "ports": [
+      ["CCS2", 180, 4],
+      ["Type 2", 22, 4]
+    ]
+  },
+  {
+    "id": "river-station",
+    "name": "Речной вокзал",
+    "address": "Фестивальная ул., 2",
+    "district": "Левобережный район",
+    "coordinates": [37.4662, 55.8549],
+    "maxPowerKw": 180,
+    "limitKw": 180,
+    "price": 15,
+    "state": "service",
+    "ports": [["CCS2", 90, 2]]
+  },
+  {
+    "id": "sokolniki",
+    "name": "Сокольники",
+    "address": "Сокольническая площадь, 4",
+    "district": "Сокольники",
+    "coordinates": [37.6802, 55.7896],
+    "maxPowerKw": 240,
+    "limitKw": 200,
+    "price": 19,
+    "state": "online",
+    "ports": [
+      ["CCS2", 100, 2],
+      ["Type 2", 22, 2]
+    ]
+  },
+  {
+    "id": "baumanskaya",
+    "name": "Бауманская",
+    "address": "Бауманская ул., 32",
+    "district": "Басманный район",
+    "coordinates": [37.6796, 55.7713],
+    "maxPowerKw": 180,
+    "limitKw": 150,
+    "price": 18,
+    "state": "online",
+    "ports": [
+      ["CHAdeMO", 50, 2],
+      ["Type 2", 22, 2]
+    ]
+  }
+]

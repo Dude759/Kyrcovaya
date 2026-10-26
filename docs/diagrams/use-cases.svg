@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
+<title id="title">Варианты использования платформы «Энерготранспорт»</title>
+<desc id="desc">Два актора: водитель и оператор. Оба входят в систему. Водитель регистрируется, ищет станцию, бронирует и оплачивает, управляет своей зарядкой и историей. Оператор наблюдает сеть, управляет объектами, сессиями, мощностью и прогнозом. Публичная регистрация оператора отсутствует. Это целевая модель, а не перечень реализованных серверных функций.</desc>
+<rect width="1600" height="1040" fill="white"/>
+<g font-family="Segoe UI, Arial, sans-serif">
+  <text x="54" y="49" font-size="16" fill="#61707e">ПРОЕКТИРОВАНИЕ · ВАРИАНТЫ ИСПОЛЬЗОВАНИЯ</text>
+  <rect x="235" y="90" width="1130" height="870" rx="0" fill="#fafbfc" stroke="#24303b" stroke-width="2"/>
+  <text x="800" y="131" text-anchor="middle" font-size="26" font-weight="600" fill="#18232e">Платформа «Энерготранспорт»</text>
+  <g fill="none" stroke="#687582" stroke-width="1.4">
+    <path d="M 126 433 L 184 200 H 565 M 1474 433 L 1416 200 H 1035"/>
+    <path d="M 126 433 L 305 325"/>
+    <path d="M 126 433 L 305 415"/>
+    <path d="M 126 433 L 305 505"/>
+    <path d="M 126 433 L 305 595"/>
+    <path d="M 126 433 L 305 685"/>
+    <path d="M 126 433 L 305 775"/>
+    <path d="M 126 433 L 305 865"/>
+    <path d="M 1474 433 L 1295 325"/>
+    <path d="M 1474 433 L 1295 415"/>
+    <path d="M 1474 433 L 1295 505"/>
+    <path d="M 1474 433 L 1295 595"/>
+    <path d="M 1474 433 L 1295 685"/>
+    <path d="M 1474 433 L 1295 775"/>
+    <path d="M 1474 433 L 1295 865"/>
+  </g>
+  <g id="C01">
+  <ellipse cx="800" cy="200" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="800" y="191" text-anchor="middle" font-size="14" fill="#61707e">C01</text>
+  <text x="800" y="215" text-anchor="middle" font-size="21" fill="#18232e">Войти в систему</text>
+</g>
+  <g id="D01">
+  <ellipse cx="540" cy="325" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="540" y="316" text-anchor="middle" font-size="14" fill="#61707e">D01</text>
+  <text x="540" y="340" text-anchor="middle" font-size="21" fill="#18232e">Зарегистрироваться</text>
+</g>
+  <g id="D02">
+  <ellipse cx="540" cy="415" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="540" y="406" text-anchor="middle" font-size="14" fill="#61707e">D02</text>
+  <text x="540" y="430" text-anchor="middle" font-size="21" fill="#18232e">Найти совместимую станцию</text>
+</g>
+  <g id="D03">
+  <ellipse cx="540" cy="505" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="540" y="496" text-anchor="middle" font-size="14" fill="#61707e">D03</text>
+  <text x="540" y="520" text-anchor="middle" font-size="21" fill="#18232e">Забронировать и оплатить</text>
+</g>
+  <g id="D04">
+  <ellipse cx="540" cy="595" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="540" y="586" text-anchor="middle" font-size="14" fill="#61707e">D04</text>
+  <text x="540" y="610" text-anchor="middle" font-size="21" fill="#18232e">Просмотреть / отменить бронь</text>
+</g>
+  <g id="D05">
+  <ellipse cx="540" cy="685" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="540" y="676" text-anchor="middle" font-size="14" fill="#61707e">D05</text>
+  <text x="540" y="700" text-anchor="middle" font-size="21" fill="#18232e">Начать / завершить зарядку</text>
+</g>
+  <g id="D06">
+  <ellipse cx="540" cy="775" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="540" y="766" text-anchor="middle" font-size="14" fill="#61707e">D06</text>
+  <text x="540" y="790" text-anchor="middle" font-size="21" fill="#18232e">Посмотреть историю и отчёт</text>
+</g>
+  <g id="D07">
+  <ellipse cx="540" cy="865" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="540" y="856" text-anchor="middle" font-size="14" fill="#61707e">D07</text>
+  <text x="540" y="880" text-anchor="middle" font-size="21" fill="#18232e">Профиль и уведомления</text>
+</g>
+  <g id="O01">
+  <ellipse cx="1060" cy="325" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="1060" y="316" text-anchor="middle" font-size="14" fill="#61707e">O01</text>
+  <text x="1060" y="340" text-anchor="middle" font-size="21" fill="#18232e">Наблюдать состояние сети</text>
+</g>
+  <g id="O02">
+  <ellipse cx="1060" cy="415" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="1060" y="406" text-anchor="middle" font-size="14" fill="#61707e">O02</text>
+  <text x="1060" y="430" text-anchor="middle" font-size="21" fill="#18232e">Управлять станциями и портами</text>
+</g>
+  <g id="O03">
+  <ellipse cx="1060" cy="505" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="1060" y="496" text-anchor="middle" font-size="14" fill="#61707e">O03</text>
+  <text x="1060" y="520" text-anchor="middle" font-size="21" fill="#18232e">Контролировать сессии</text>
+</g>
+  <g id="O04">
+  <ellipse cx="1060" cy="595" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="1060" y="586" text-anchor="middle" font-size="14" fill="#61707e">O04</text>
+  <text x="1060" y="610" text-anchor="middle" font-size="21" fill="#18232e">Задать лимиты мощности</text>
+</g>
+  <g id="O05">
+  <ellipse cx="1060" cy="685" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="1060" y="676" text-anchor="middle" font-size="14" fill="#61707e">O05</text>
+  <text x="1060" y="700" text-anchor="middle" font-size="21" fill="#18232e">Получить прогноз нагрузки</text>
+</g>
+  <g id="O06">
+  <ellipse cx="1060" cy="775" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="1060" y="766" text-anchor="middle" font-size="14" fill="#61707e">O06</text>
+  <text x="1060" y="790" text-anchor="middle" font-size="21" fill="#18232e">Перевести объект в сервис</text>
+</g>
+  <g id="O07">
+  <ellipse cx="1060" cy="865" rx="235" ry="36" fill="white" stroke="#24303b" stroke-width="1.8"/>
+  <text x="1060" y="856" text-anchor="middle" font-size="14" fill="#61707e">O07</text>
+  <text x="1060" y="880" text-anchor="middle" font-size="21" fill="#18232e">Организация и оповещения</text>
+</g>
+  <g aria-label="Водитель" fill="none" stroke="#24303b" stroke-width="2.5" stroke-linecap="round">
+  <circle cx="90" cy="384" r="20"/>
+  <path d="M 90 404 V 473 M 54 433 H 126 M 90 473 L 61 516 M 90 473 L 119 516"/>
+  <text x="90" y="551" text-anchor="middle" font-size="23" stroke="none" fill="#18232e">Водитель</text>
+</g>
+  <g aria-label="Оператор" fill="none" stroke="#24303b" stroke-width="2.5" stroke-linecap="round">
+  <circle cx="1510" cy="384" r="20"/>
+  <path d="M 1510 404 V 473 M 1474 433 H 1546 M 1510 473 L 1481 516 M 1510 473 L 1539 516"/>
+  <text x="1510" y="551" text-anchor="middle" font-size="23" stroke="none" fill="#18232e">Оператор</text>
+</g>
+  <text x="800" y="1001" text-anchor="middle" font-size="17" fill="#61707e">Целевая модель · линии показывают участие акторов · оператор получает аккаунт служебным способом</text>
+</g>
+</svg>

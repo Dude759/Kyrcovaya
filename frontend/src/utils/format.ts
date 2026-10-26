@@ -22,7 +22,7 @@ export const today = () =>
   }).format(new Date());
 export function sessionMetrics(
   session: Session,
-  battery: number,
+  battery: number | undefined,
   now = Date.now(),
 ) {
   const elapsed =
@@ -32,7 +32,7 @@ export function sessionMetrics(
           (now - Date.parse(session.meteredAt ?? session.startedAt)) / 3600000,
         )
       : 0;
-  battery = session.batteryCapacity ?? battery;
+  battery = session.batteryCapacity ?? battery ?? 0;
   const meteredEnergy =
     session.status === "completed"
       ? Math.max(0, session.energy)
@@ -108,7 +108,7 @@ export function telemetryState(session: Session, now = Date.now()) {
 // Device readings are never extrapolated; demo readings advance only while fresh.
 export function displaySessionMetrics(
   session: Session,
-  battery: number,
+  battery: number | undefined,
   now = Date.now(),
 ) {
   const state = telemetryState(session, now);

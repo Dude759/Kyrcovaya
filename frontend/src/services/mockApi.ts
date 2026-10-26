@@ -257,7 +257,7 @@ function validateBooking(db: Database, user: User, input: BookingInput) {
   const amount = Math.round(
     Math.min(
       ((connector.powerKw * input.duration) / 60) * 0.65,
-      user.battery * 0.3,
+      (user.battery ?? 0) * 0.3,
     ) * station.pricePerKwh,
   );
   return { connector, amount };
@@ -689,7 +689,7 @@ export async function mockRequest<T>(
         connector: booking.connector,
         startedAt: stamp(),
         meteredAt: stamp(),
-        batteryCapacity: account.user.battery,
+        batteryCapacity: account.user.battery ?? 75,
         endedAt: null,
         energy: 0,
         power: Math.min(connector.powerKw, station.limitKw / connector.total),

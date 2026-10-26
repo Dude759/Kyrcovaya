@@ -9,7 +9,7 @@ import {
 import { BrandMark } from "../components/BrandMark";
 import { ErrorMessage } from "../components/Feedback";
 import { useAction } from "../hooks/useAction";
-import { api, apiMode } from "../services/api";
+import { api, apiMode, publicDemo } from "../services/api";
 import { demoAccounts } from "../services/mockApi";
 import { useApp } from "../state/context";
 import type { Role } from "../types/domain";
@@ -140,6 +140,22 @@ export function LoginPage() {
           <small className="operator-hint">
             Доступ оператору выдаёт администратор организации.
           </small>
+          {apiMode === "http" && action.busy && (
+            <p className="operator-hint">
+              Первое подключение после перерыва может занять около минуты.
+            </p>
+          )}
+          {publicDemo && apiMode === "http" && (
+            <p className="demo-note">
+              Учебный стенд с общей базой данных.
+              <br />
+              {role === "operator"
+                ? demoAccounts.operator
+                : demoAccounts.driver}
+              <br />
+              Пароль для демонстрации: {demoAccounts.password}
+            </p>
+          )}
           {apiMode === "mock" && (
             <p className="demo-note">
               Демонстрационный режим · данные сохраняются в этом браузере.
