@@ -826,6 +826,7 @@ test("P16: provider HTTPS confirmation page has no card fields; signed form deli
     path = url.pathname + url.search;
   const page = await request(path);
   assert.equal(page.status, 200);
+    assert.equal(page.headers.get("referrer-policy"), "strict-origin");
   assert.match(page.data, /Деньги не списываются/);
   assert(!/<input[^>]+name="(?:card|cvv|pan)/.test(page.data));
   assert.equal((await counts()).events, 0);

@@ -109,7 +109,8 @@ function page(
 export function testProviderRoutes(pool: Database, options?: PaymentOptions) {
   const router = Router();
   router.use((_req, res, next) => {
-    res.setHeader("Referrer-Policy", "no-referrer");
+    // Keep the form's Origin usable while never including the capability path/query in Referer.
+    res.setHeader("Referrer-Policy", "strict-origin");
     next();
   });
   router.get("/:id", async (req, res) => {
