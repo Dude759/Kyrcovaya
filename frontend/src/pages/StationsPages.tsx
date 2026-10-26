@@ -170,7 +170,7 @@ export function StationPage() {
             <div>
               <dt>Парковка</dt>
               <dd>
-                {data?.stage === "foundation"
+                {data?.stage
                   ? "Уточняется у станции"
                   : "Бесплатно 2 часа"}
               </dd>
@@ -178,7 +178,7 @@ export function StationPage() {
             <div>
               <dt>Режим работы</dt>
               <dd>
-                {data?.stage === "foundation"
+                {data?.stage
                   ? "Уточняется у станции"
                   : "Круглосуточно"}
               </dd>
