@@ -97,4 +97,4 @@ npm test
 
 ## Проверка публичного выпуска
 
-API размещён на Render Free, БД — Neon Free. После merge проверьте не только health/ready, но и commit живого deploy в Render: он должен совпадать с выпущенным main. Для автопубликации нужна связь сервиса с GitHub, а не только публичный URL репозитория. Инструкция и ограничения — [публичный стенд](../docs/public-demo.md); результаты и ссылка на закрывающий PR — [публичный протокол](../docs/testing/public-results.md).
+API размещён на Render Free, БД — Neon Free. После merge проверьте не только health/ready, но и commit живого deploy в Render: он должен совпадать с выпущенным main. Для автопубликации нужна связь сервиса с GitHub и установленное GitHub App Render с доступом к Kyrcovaya, а не только публичный URL репозитория или вход через GitHub. Инструкция и ограничения — [публичный стенд](../docs/public-demo.md); результаты и ссылка на закрывающий PR — [публичный протокол](../docs/testing/public-results.md).

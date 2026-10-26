@@ -12,6 +12,7 @@
 - Переключение Pages на API: [публикация 40325979018](https://github.com/Dude759/Kyrcovaya/actions/runs/40325979018). PUBLIC_API_MODE=http, PUBLIC_API_URL указывает на HTTPS /api; CORS — только origin Pages.
 - Ревизия bef122a после PR №2: [backend CI](https://github.com/Dude759/Kyrcovaya/actions/runs/40328129753), [frontend CI](https://github.com/Dude759/Kyrcovaya/actions/runs/40328129685) и [Pages](https://github.com/Dude759/Kyrcovaya/actions/runs/40328129737) — PASS. В публичном браузере подтверждены переход driver → operator по URL без сохранения старой роли, серверный вход и 8 станций на Яндекс Карте.
 - При проверке обнаружено, что autoDeploy=yes у сервиса с публичным Git URL не запустил новый backend. Пользователь отдельно подключил GitHub к Render. Итог проверки следующего merge, live commit и повторного smoke сохраняется в [PR №3 — проверка автоматической доставки](https://github.com/Dude759/Kyrcovaya/pull/3). До успешного результата этого пункта Stage 2B не считается CLOSED.
+- После PR №3 API обновлён чистой пересборкой до 3105f86: deploy dep-dbfohat9el5s73801240, live; повторный публичный smoke — 7 групп PASS. Это ручной запуск, не доказательство auto-deploy. Затем по скриншотам выяснено, что GitHub App Render отсутствовало в Installed GitHub Apps; пользователь установил его. Проверка доставки после установки и итоговый статус этапа фиксируются в [PR №4](https://github.com/Dude759/Kyrcovaya/pull/4).
 
 ## Приёмка
 
