@@ -28,6 +28,7 @@ export function userRoutes(pool: Database, publicDemo = false) {
         "driver@energotransport.test",
         "driver2@energotransport.test",
         "operator@energotransport.test",
+        "qa.operator@energotransport.test",
       ].includes(currentEmail);
       if (
         publicDemo &&

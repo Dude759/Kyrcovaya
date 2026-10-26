@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { FormEvent } from "react";
 import {
   Link,
@@ -15,10 +14,8 @@ import { useApp } from "../state/context";
 import type { Role } from "../types/domain";
 
 export function LoginPage() {
-  const [params] = useSearchParams();
-  const [role, setRole] = useState<Role>(
-    params.get("role") === "operator" ? "operator" : "driver",
-  );
+  const [params, setParams] = useSearchParams();
+  const role: Role = params.get("role") === "operator" ? "operator" : "driver";
 
   const action = useAction();
   const { authenticate } = useApp();
@@ -82,7 +79,14 @@ export function LoginPage() {
                 className={role === value ? "is-active" : ""}
                 key={value}
                 onClick={() => {
-                  setRole(value);
+                  setParams(
+                    (previous) => {
+                      const next = new URLSearchParams(previous);
+                      next.set("role", value);
+                      return next;
+                    },
+                    { replace: true },
+                  );
                   action.setError("");
                 }}
               >

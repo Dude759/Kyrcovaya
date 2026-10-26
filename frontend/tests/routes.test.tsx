@@ -1,7 +1,9 @@
 import "./setup";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
+import { LoginPage } from "../src/pages/AuthPages";
 import { AppProvider, ProtectedRoute } from "../src/state/AppProvider";
 import { api, setToken } from "../src/services/api";
 import { demoAccounts } from "../src/services/mockApi";
@@ -11,6 +13,26 @@ beforeEach(() => {
   sessionStorage.clear();
 });
 afterEach(cleanup);
+it("изменение ссылки входа переключает выбранную роль без перезагрузки формы", async () => {
+  render(
+    <MemoryRouter initialEntries={["/login?role=driver"]}>
+      <AppProvider>
+        <Link to="/login?role=operator">Перейти к оператору</Link>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+        </Routes>
+      </AppProvider>
+    </MemoryRouter>,
+  );
+  const operator = screen.getByRole("button", {
+    name: /Оператор\s*Управление инфраструктурой/,
+  });
+  expect(operator.getAttribute("aria-pressed")).toBe("false");
+  await userEvent.click(
+    screen.getByRole("link", { name: "Перейти к оператору" }),
+  );
+  expect(operator.getAttribute("aria-pressed")).toBe("true");
+});
 function GuardFixture() {
   return (
     <MemoryRouter initialEntries={["/operator"]}>
