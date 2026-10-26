@@ -153,7 +153,7 @@ const workspace = (await call("/api/workspace", "GET", undefined, token)).data;
 for (const key of ["bookings", "sessions", "payments", "events"])
   assert.deepEqual(workspace[key], []);
 assert.equal(workspace.forecast, null);
-assert.equal(workspace.stage, "foundation");
+assert.equal(workspace.stage, "bookings");
 assert.equal(
   (await call("/api/operator/network", "PATCH", { networkLimit: 1 }, token))
     .status,
@@ -258,14 +258,14 @@ if (process.argv.includes("--payments")) {
     },
   };
   const key = randomUUID();
-  const created = await Promise.all([
-    call("/api/payments", "POST", body, token, frontendOrigin, {
-      "Idempotency-Key": key,
-    }),
-    call("/api/payments", "POST", body, token, frontendOrigin, {
-      "Idempotency-Key": key,
-    }),
-  ]);
+  // Sequential replay only: concurrency belongs to the isolated PostgreSQL suite.
+  const created = [];
+  for (let i = 0; i < 2; i++)
+    created.push(
+      await call("/api/payments", "POST", body, token, frontendOrigin, {
+        "Idempotency-Key": key,
+      }),
+    );
   assert.deepEqual(created.map((r) => r.status).sort(), [200, 201]);
   const first = created[0].data;
   assert.equal(first.id, created[1].data.id);
@@ -420,10 +420,19 @@ if (process.argv.includes("--payments")) {
     undefined,
     token,
   );
-  assert.equal(success.data.status, "pending");
+  assert.equal(success.data.status, "succeeded");
   assert.equal(success.data.attempt.status, "succeeded");
-  assert.equal(success.data.awaitingFinalization, true);
-  assert.equal(success.data.bookingId, null);
+  assert.equal(success.data.awaitingFinalization, false);
+  assert(success.data.bookingId);
+  assert.equal(success.data.reservation.state, "confirmed");
+  const paidWorkspace = (await call("/api/workspace", "GET", undefined, token))
+    .data;
+  const booking = paidWorkspace.bookings.find(
+    (b) => b.id === success.data.bookingId,
+  );
+  assert.equal(booking.paymentId, pending.data.id);
+  assert.equal(booking.connectorId, pending.data.reservation.connectorId);
+  assert.equal(booking.amount, pending.data.amount);
   assert.equal(
     (await call(`/api/payments/${pending.data.id}/cancel`, "POST", {}, token))
       .status,
@@ -446,11 +455,11 @@ if (process.argv.includes("--payments")) {
     401,
   );
   pass(
-    "Provider success is repeat-safe and remains pending without a booking; invalid signatures rejected",
+    "Atomic finalization creates one confirmed booking and survives duplicate success; invalid signatures rejected",
   );
   console.log(
     JSON.stringify({
-      phase: "WAITING_PAYMENT_EXPIRY",
+      phase: "WAITING_ORIGINAL_HOLD_DEADLINE",
       seconds: Math.max(
         0,
         Math.ceil((Date.parse(success.data.expiresAt) - Date.now()) / 1000),
@@ -470,12 +479,35 @@ if (process.argv.includes("--payments")) {
     undefined,
     token,
   );
-  assert.equal(expired.data.status, "failed");
-  assert.equal(expired.data.reconciliationRequired, true);
-  assert.equal(expired.data.reservation.state, "expired");
-  assert.equal(expired.data.bookingId, null);
+  assert.equal(expired.data.status, "succeeded");
+  assert.equal(expired.data.reconciliationRequired, false);
+  assert.equal(expired.data.reservation.state, "confirmed");
+  assert.equal(expired.data.bookingId, success.data.bookingId);
   pass(
-    "Successful test attempt expires without extending the hold or pretending a confirmed booking",
+    "Confirmed booking survives original hold deadline with same immutable snapshot",
+  );
+  // Delayed success of the already cancelled order must refund, never resurrect its released hold.
+  await outcome(first, "succeeded");
+  let refunded;
+  for (let i = 0; i < 24; i++) {
+    refunded = (
+      await call(`/api/payments/${first.id}`, "GET", undefined, token)
+    ).data;
+    if (
+      refunded.refunds?.length &&
+      refunded.refunds.every((r) => r.status === "succeeded")
+    )
+      break;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  assert.equal(refunded.bookingId, null);
+  assert.equal(refunded.reservation.state, "released");
+  assert.equal(refunded.providerSuccessReceived, true);
+  assert.equal(refunded.refunds.length, 1);
+  assert.equal(refunded.refunds[0].status, "succeeded");
+  assert(refunded.refunds[0].confirmedAt);
+  pass(
+    "Late success queues an idempotent compensation and completes only after durable test-adapter receipt",
   );
 }
 await call("/api/auth/logout", "POST", undefined, isolated.data.token);

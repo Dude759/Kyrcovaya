@@ -167,7 +167,7 @@ export function AppShell({
       </header>
 
       <main
-        className={`app-content${data?.stage === "foundation" ? " app-content--foundation" : ""}`}
+        className={`app-content${data?.stage ? " app-content--foundation" : ""}`}
       >
         {data?.stage === "foundation" && (
           <div className="connection-banner" role="status">
@@ -175,6 +175,12 @@ export function AppShell({
             зарядка, управление станциями и телеметрия появятся в следующих
             версиях. Доступность портов пока отражает конфигурацию учебного
             каталога.
+          </div>
+        )}
+        {data?.stage === "bookings" && (
+          <div className="connection-banner" role="status">
+            Учебный стенд: брони и тестовая предоплата сохраняются на сервере.
+            Деньги не списываются. Зарядка и телеметрия ещё не подключены.
           </div>
         )}
         {error && (

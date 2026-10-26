@@ -72,3 +72,7 @@ Render Free засыпает после 15 минут без запросов; �
 В Render заданы PAYMENT_PUBLIC_ORIGIN=https://energotransport-api-dude759.onrender.com и приватный PAYMENT_WEBHOOK_SECRET (случайный ключ подписи). Секрет хранится только в окружении API, не в VITE/Git/логах. Обе переменные нужны одновременно; настройки БД и остальные env сохраняются.
 
 Приёмка: `node backend/scripts/public-smoke.mjs https://energotransport-api-dude759.onrender.com --reservations --payments`. Прогон проверяет create/idempotency, fail/retry/cancel, HTTPS форму, повтор success, отсутствие booking и expiry. Capability URL и токены остаются в памяти. Вымышленные заказы сохраняются; hold освобождается или истекает. [Протокол 3B](testing/payment-results.md). Основной переход оформления брони закрыт до 3C.
+
+## Инкремент 3C
+
+Секреты и существующая инфраструктура не меняются. Перед публикацией 004 проверяется на локальной PostgreSQL и временной ветке Neon; после merge её применяет прежний Render bootstrap. Recovery существующих success 3B запускается в API: истёкшие записи компенсируются без создания брони задним числом. Публичный smoke --reservations --payments использует только последовательные функциональные заявки; конкурентные проверки выполняются в отдельной локальной _test БД. [Протокол Stage 3C](testing/booking-finalization-results.md). Подтверждённые учебные брони сохраняются как история, не удаляются после QA; зарядка/отмена confirmed booking остаются закрытыми.

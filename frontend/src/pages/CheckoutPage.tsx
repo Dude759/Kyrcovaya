@@ -37,7 +37,11 @@ function Checkout({ paymentId }: { paymentId: string }) {
         if (cancelled) return;
         setPayment(result);
         setError("");
-        if (result.status === "pending" && !result.providerSuccessReceived)
+        if (
+          result.status === "pending" ||
+          result.status === "succeeded" ||
+          result.refunds?.some((r) => r.status !== "succeeded")
+        )
           timer = setTimeout(() => void load(), 5000);
       } catch (err) {
         if (!cancelled) setError(errorMessage(err));
@@ -62,27 +66,44 @@ function Checkout({ paymentId }: { paymentId: string }) {
     payment.bookingId &&
     data?.bookings.some((b) => b.id === payment.bookingId)
   )
-    return <Navigate to={`/driver/payment/${payment.bookingId}`} replace />;
+    return (
+      <Navigate
+        to={
+          apiMode === "mock"
+            ? `/driver/payment/${payment.bookingId}`
+            : `/driver/bookings?confirmed=${payment.bookingId}`
+        }
+        replace
+      />
+    );
   const expired = payment ? Date.parse(payment.expiresAt) <= now : false;
+  const refunded =
+    !!payment?.refunds?.length &&
+    payment.refunds.every((r) => r.status === "succeeded");
   const reconciliation =
-    payment?.reconciliationRequired ||
-    (payment?.providerSuccessReceived && expired);
+    !refunded &&
+    (payment?.reconciliationRequired ||
+      (payment?.providerSuccessReceived &&
+        expired &&
+        payment.status !== "succeeded"));
   const awaiting = payment?.awaitingFinalization && !expired;
   const status =
     expired && (payment?.status === "pending" || payment?.status === "failed")
       ? "cancelled"
       : payment?.status;
-  const title = reconciliation
-    ? "Тестовый результат требует сверки"
-    : awaiting
-      ? "Результат провайдера принят"
-      : status === "failed"
-        ? "Оплата не прошла"
-        : status === "cancelled"
-          ? "Оплата отменена"
-          : status === "succeeded"
-            ? "Оплата подтверждена"
-            : "Подтверждение оплаты";
+  const title = refunded
+    ? "Тестовый возврат подтверждён"
+    : reconciliation
+      ? "Тестовый результат требует сверки"
+      : awaiting
+        ? "Результат провайдера принят"
+        : status === "failed"
+          ? "Оплата не прошла"
+          : status === "cancelled"
+            ? "Оплата отменена"
+            : status === "succeeded"
+              ? "Оплата подтверждена"
+              : "Подтверждение оплаты";
   const station = data?.stations.find((s) => s.id === payment?.input.stationId);
   const confirmationUrl = payment?.confirmationUrl?.startsWith("https://")
     ? payment.confirmationUrl
@@ -127,6 +148,13 @@ function Checkout({ paymentId }: { paymentId: string }) {
         )}
         {payment && (
           <>
+            {!!payment.refunds?.length && (
+              <p role="status">
+                {refunded
+                  ? "Тестовый адаптер подтвердил возврат. Реальные деньги не списывались."
+                  : "Запрос тестового возврата сохранён. Подтверждение адаптера ещё не получено; возврат не выполнен."}
+              </p>
+            )}
             {status === "succeeded" && (
               <div role="status">
                 <p>
@@ -167,7 +195,7 @@ function Checkout({ paymentId }: { paymentId: string }) {
               <>
                 <p role="status">
                   {awaiting
-                    ? "Тестовый провайдер сообщил об успехе. Подтверждённая бронь ещё не создана: финализация появится на следующем этапе. Повторять оплату не нужно."
+                    ? "Тестовый провайдер сообщил об успехе. Подтверждённая бронь ещё не создана: сервер завершает операцию. Повторять оплату не нужно."
                     : reconciliation
                       ? "Тестовый результат сохранён для сверки. Бронь не подтверждена; повторять оплату не нужно."
                       : "Ожидаем результат провайдера. Не создавайте новый платёж, пока проверяется этот."}

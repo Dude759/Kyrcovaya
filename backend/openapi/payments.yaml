@@ -1,17 +1,42 @@
 openapi: 3.1.0
 info:
   title: Энерготранспорт — Test Payments
-  version: 0.3.0
+  version: 0.4.0
   description: |
-    Stage 3B. Тестовые деньги; реквизиты карты не вводятся и не хранятся.
-    Provider success завершает попытку, а не заказ: payment=pending, awaitingFinalization=true,
-    bookingId=null. Финализация payment + confirmed reservation + booking появится в Stage 3C.
-    POST /bookings остаётся 501. Workspace сохраняет Foundation-формат, без платёжной истории.
+    Stage 3C. Тестовые деньги; реквизиты карты не вводятся и не хранятся.
+    Проверенный success атомарно подтверждает payment, reservation и одну booking.
+    Поздний успех сохраняется без восстановления hold, с идемпотентной компенсацией.
+    Возврат считается выполненным только после квитанции тестового адаптера.
+    POST /bookings остаётся 501; водительский workspace содержит свои payments/bookings.
 servers:
   - url: https://energotransport-api-dude759.onrender.com/api
 security:
   - bearerAuth: []
 paths:
+  /workspace:
+    get:
+      operationId: getDriverWorkspace
+      summary: Рабочая область; водитель получает только свои брони и платежи
+      description: |
+        stage=bookings для driver, foundation для operator. Станции и аккаунт загружаются как ранее.
+        Собственные bookings/payments упорядочены по времени, до 100 записей каждого вида.
+        Сессии/телеметрия/ML остаются пустыми. Истёкшая pending попытка не означает бронь.
+      responses:
+        "200":
+          description: Рабочая область пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stage: { type: string, enum: [bookings, foundation] }
+                  bookings:
+                    type: array
+                    items: { $ref: "#/components/schemas/Booking" }
+                  payments:
+                    type: array
+                    items: { $ref: "#/components/schemas/Payment" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
   /payments:
     post:
       operationId: createTestPayment
@@ -45,7 +70,7 @@ paths:
     get:
       operationId: getTestPayment
       summary: Получить только свой платёж и обработать истечение срока
-      description: GET может зафиксировать наступивший timeout. Истечение после provider success требует сверки, не создаёт бронь и не продлевает hold.
+      description: GET может зафиксировать наступивший timeout. Подтверждённая бронь сохраняется после исходного TTL hold. Нефинализированный поздний success требует компенсации без восстановления резерва.
       responses:
         "200": { $ref: "#/components/responses/Payment" }
         "400": { $ref: "#/components/responses/Invalid" }
@@ -109,7 +134,7 @@ paths:
         После проверки подписи сохраняются только разрешённые поля и hash нормализованного события.
         UNIQUE(test,providerEventId) дедуплицирует даже повтор после перезапуска/с другим порядком JSON-полей.
         Другие данные с прежним ID — 409. amountKopecks/currency проверяются по заказу.
-        Поздний success сохраняется с requiresReconciliation; бронь и автоматический возврат в 3B не создаются.
+        Действующий hold атомарно становится бронью. Поздний success сохраняется с причиной и компенсацией; повтор awaiting_booking из 3B завершает ранее пропущенную финализацию.
       parameters:
         - in: header
           name: X-Test-Payment-Timestamp
@@ -138,7 +163,7 @@ paths:
                 currency: { type: string, const: RUB }
       responses:
         "200":
-          description: Событие обработано или уже известно; duplicate=true не выполняет второй эффект
+          description: Событие обработано или уже известно; duplicate=true не создаёт второй эффект, но завершает отсутствующую финализацию awaiting_booking из 3B
           content:
             application/json:
               schema:
@@ -153,6 +178,8 @@ paths:
                       enum:
                         [
                           awaiting_booking,
+                          finalized,
+                          compensation_pending,
                           applied,
                           ignored_terminal,
                           late_success,
@@ -187,7 +214,7 @@ components:
         }
   responses:
     Payment:
-      description: Текущий снимок своего тестового заказа; bookingId всегда null
+      description: Текущий снимок своего тестового заказа; bookingId заполнен только при атомарно подтверждённой брони
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Payment" }
@@ -222,6 +249,43 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
   schemas:
+    Booking:
+      type: object
+      required:
+        [
+          id,
+          userId,
+          paymentId,
+          reservationId,
+          stationId,
+          connectorId,
+          connector,
+          start,
+          duration,
+          amount,
+          payment,
+          status,
+          createdAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        paymentId: { type: string, format: uuid }
+        reservationId: { type: string, format: uuid }
+        stationId: { type: string }
+        connectorId: { type: string, format: uuid }
+        connector: { type: string, enum: [CCS2, CHAdeMO, Type 2] }
+        start: { type: string, format: date-time }
+        duration: { type: integer, enum: [30, 45, 60, 90] }
+        amount:
+          {
+            type: number,
+            description: Предварительная тестовая сумма в рублях,
+            не итог стоимости энергии,
+          }
+        payment: { type: string, enum: [card, sbp] }
+        status: { type: string, const: confirmed }
+        createdAt: { type: string, format: date-time }
     Error:
       type: object
       required: [message]
@@ -274,8 +338,8 @@ components:
         amountKopecks: { type: integer, minimum: 0 }
         tariffKopecks: { type: integer, minimum: 0 }
         estimatedEnergyKwh: { type: number, minimum: 0 }
-        status: { type: string, enum: [pending, failed, cancelled] }
-        bookingId: { type: "null" }
+        status: { type: string, enum: [pending, failed, cancelled, succeeded] }
+        bookingId: { type: [string, "null"], format: uuid }
         createdAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time }
         failure: { type: [string, "null"] }
@@ -283,6 +347,31 @@ components:
         providerSuccessReceived: { type: boolean }
         awaitingFinalization: { type: boolean }
         reconciliationRequired: { type: boolean }
+        finalizationReason:
+          type: [string, "null"]
+          enum:
+            [
+              null,
+              hold_expired,
+              hold_released,
+              port_unavailable,
+              port_conflict,
+              attempt_not_current,
+              extra_success,
+            ]
+        refunds:
+          type: array
+          items:
+            type: object
+            required: [id, status, reason, amount, confirmedAt, test]
+            properties:
+              id: { type: string, format: uuid }
+              status: { type: string, enum: [pending, submitted, succeeded] }
+              reason: { type: string }
+              amount:
+                { type: number, description: Тестовая сумма возврата в рублях }
+              confirmedAt: { type: [string, "null"], format: date-time }
+              test: { type: boolean, const: true }
         confirmationUrl:
           type: string
           format: uri
@@ -304,4 +393,4 @@ components:
           properties:
             id: { type: string, format: uuid }
             connectorId: { type: string, format: uuid }
-            state: { type: string, enum: [held, released, expired] }
+            state: { type: string, enum: [held, confirmed, released, expired] }

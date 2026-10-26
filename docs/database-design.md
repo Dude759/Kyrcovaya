@@ -135,3 +135,9 @@ DDL-пример резервирования основан на [официа�
 Триггер запрещает менять снимок (включая цену/период/TTL/ключ/hash) и стирать полученный provider success. Временный CHECK 3B запрещает business succeeded: успех остаётся у attempt/event. В confirmation_url хранится базовый URL без capability; события содержат разрешённые поля/hash без сырого payload и карточных данных.
 
 Создание 3B сериализовано по user advisory lock; новый заказ/hold/attempt виден только после общего commit. Операции существующего заказа сначала берут payment FOR UPDATE, затем станцию/порт/резерв. Ограниченный повтор deadlock/serialization и exclusion остаются защитой. [Конкурентные проверки P05/P06/P18/P19](testing/payment-results.md). Остальная полная ER-модель остаётся целевой.
+
+## Фактическая схема 004: атомарная бронь и компенсация
+
+[004_booking_finalization.sql](../backend/migrations/004_booking_finalization.sql) расширяет временный payment_stage3b_status значением succeeded, сохраняя 001–003 и payment_order_immutable. Bookings уникальны по payment, reservation и funding attempt. Составные FK защищают user/organization/station/connector/type/interval/amount/method. Обратные FK и deferred constraint triggers проверяют согласованность payment + confirmed reservation + booking при commit; временные промежуточные записи внутри транзакции допустимы, несогласованный commit — нет.
+
+payment_compensations хранит неизменяемый снимок причины/суммы/attempt/provider refund ID и pending/submitted/succeeded. test_refund_receipts отделён от намерения; составной FK с confirmed_at и проверка суммы запрещают ложный completed и удаление подтверждающей квитанции. Точность времени квитанции сохраняется SQL-копированием timestamptz, без потери микросекунд через JS Date. [F00–F20](testing/booking-finalization-results.md) покрывают транзакции, миграцию, сбои и восстановление.

@@ -1,6 +1,6 @@
-# Энерготранспорт — Backend v0.3
+# Энерготранспорт — Backend v0.4
 
-Express 5 + TypeScript, Node.js 24, PostgreSQL 17 и `pg`, без ORM. Реализованы аккаунты, профиль, каталог, Reservation Core и Test Payments. Оплаченная подтверждённая бронь, зарядка, управление оборудованием и ML относятся к следующим этапам.
+Express 5 + TypeScript, Node.js 24, PostgreSQL 17 и `pg`, без ORM. Реализованы аккаунты, профиль, каталог, Reservation Core, Test Payments и атомарная финализация подтверждённой брони. Зарядка, управление оборудованием и ML относятся к следующим этапам.
 
 Публичная версия: [приложение](https://dude759.github.io/Kyrcovaya/), [health API](https://energotransport-api-dude759.onrender.com/health). API — Render Free, БД — Neon Free. [Конфигурация и правила публикации](../docs/public-demo.md), [протокол](../docs/testing/public-results.md). Ниже описан независимый локальный запуск с Docker; его .env не заменяется облачными секретами.
 
@@ -76,7 +76,7 @@ Seed запускается отдельной командой и сохран�
 | POST `/api/payments/:id/retry` | Пустое тело, Idempotency-Key нового retry; новая попытка того же заказа/порта/TTL |
 | POST `/api/payments/:id/cancel` | Отмена до provider success, освобождение hold, идемпотентно |
 | POST `/api/integrations/payments/test/events` | HMAC подписанного raw JSON; Bearer пользователя подпись не заменяет |
-| GET `/api/workspace` | Станции, свои настройки и организация; пустые брони/сессии/платежи/события, forecast=null, stage=foundation |
+| GET `/api/workspace` | Станции, свои настройки и организация; свои bookings/payments для driver (stage=bookings); сессии/события пустые, forecast=null; operator остаётся stage=foundation |
 
 Фильтры каталога: `q`, `connector`, `minPowerKw`, `availableOnly=true|false`, `limit` 1–200, `cursor` из предыдущего ответа. Порядок стабильный по ID. Workspace ограничен учебным стендом до 200 станций и не обрезает его молча. Для большего каталога требуется постраничная загрузка рабочей области; публичная главная уже читает все страницы каталога.
 
@@ -124,3 +124,11 @@ GET availability доступен водителю, не создаёт резе
 Confirmation URL открывает собственную HTTPS-страницу тестового адаптера с явной надписью «деньги не списываются». Там нет карточных полей. Ссылка содержит scoped capability; токен не хранится в БД/логах, не публикуйте URL. POST формы до TTL генерирует подписанное событие через общий inbox; GET не является оплатой. Webhook принимает raw JSON до общего JSON parser: HMAC-SHA256 timestamp+'.'+body, ±300 секунд, hex подпись в X-Test-Payment-Signature и секунды в X-Test-Payment-Timestamp. Внешних банковских запросов внутри SQL-транзакции нет.
 
 [OpenAPI payments](openapi/payments.yaml), [P00–P19 и итог выпуска](../docs/testing/payment-results.md). Публичный smoke: `node scripts/public-smoke.mjs https://energotransport-api-dude759.onrender.com --reservations --payments`; он ждёт короткий TTL успешной тестовой попытки, чтобы не оставить активный hold. Истечение обрабатывается по требованию; отдельный scheduler, банковский биллинг и возвраты ещё не реализованы.
+
+## Atomic Booking Finalization — Stage 3C
+
+004 добавляет bookings, payment_compensations и долговечные test_refund_receipts. Success проверенного webhook теперь в одной транзакции создаёт одну confirmed booking, подтверждает тот же reservation и переводит payment в succeeded. UNIQUE/FK/deferred constraint triggers запрещают разрыв связей; неизменяемость заказа сохранена. Поля bookingId, finalizationReason и refunds описаны в [OpenAPI](openapi/payments.yaml).
+
+Recovery запускается при старте API и раз в 15 секунд (до 20 записей); восстанавливает awaiting_booking/late_success из 3B. Просроченные старые hold не оживают: создаётся компенсация. Тестовый возврат сначала pending/submitted; succeeded появляется только после отдельной сохранённой квитанции адаптера. Ошибка/рестарт не теряют очередь и не меняют provider refund ID. Во время сна Free процесс не выполняется; восстановление продолжится после пробуждения. Секреты/настройки Render прежние.
+
+Driver workspace содержит свои последние 100 bookings/payments; основной переход бронирования открыт. HTTP не предлагает зарядку и отмену confirmed booking — это ещё не реализовано. Весь раздел Test Payments выше сохраняет историческую границу 3B; текущая версия использует финализацию 3C. [Протокол F00–F20](../docs/testing/booking-finalization-results.md). Публичный smoke --reservations --payments теперь проверяет атомарную бронь, её сохранность после исходного TTL и подтверждённый тестовый возврат позднего успеха.
