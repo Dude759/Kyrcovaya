@@ -173,6 +173,43 @@ const operatorWorkspace = (
 ).data;
 assert(operatorWorkspace.stations.length >= 8);
 pass("Operator login and database workspace");
+if (process.argv.includes("--reservations")) {
+  const params = new URLSearchParams({
+    start: new Date(Date.now() + 86400000).toISOString(),
+    duration: "60",
+    connector: "CCS2",
+  });
+  const path = "/api/stations/tverskaya-plaza/availability?" + params;
+  const availability = await call(path, "GET", undefined, token);
+  assert.equal(availability.status, 200);
+  assert.equal(availability.data.total, 4);
+  assert(availability.data.available >= 0 && availability.data.available <= 4);
+  assert.equal(availability.data.guaranteed, false);
+  assert.equal(availability.data.estimateMethod, "power65-battery30");
+  assert.equal(availability.data.currency, "RUB");
+  assert.equal(
+    availability.data.estimatedAmount,
+    availability.data.available ? 442.8 : null,
+  );
+  assert.equal((await call(path)).status, 401);
+  assert.equal(
+    (await call(path, "GET", undefined, operator.data.token)).status,
+    403,
+  );
+  assert.equal(
+    (await call(path + "&organizationId=spoofed", "GET", undefined, token))
+      .status,
+    400,
+  );
+  assert.equal((await call("/api/bookings", "POST", {}, token)).status, 501);
+  assert.equal(
+    (await call("/api/reservations", "POST", {}, token)).status,
+    404,
+  );
+  pass(
+    "Reservation availability, server quote, auth boundaries and no public hold/booking bypass",
+  );
+}
 const isolated = await call("/api/auth/login", "POST", {
   email: "qa.operator@energotransport.test",
   password: "Demo12345",

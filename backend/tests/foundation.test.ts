@@ -83,7 +83,7 @@ after(async () => {
   await admin.end();
 });
 
-test("B01: clean migrations, seven business tables, repeatable seed preserves edits", async () => {
+test("B01: clean migrations, foundation and reservation tables, repeatable seed preserves edits", async () => {
   await migrate(pool);
   const { rows } = await pool.query(
     "SELECT tablename FROM pg_tables WHERE schemaname=$1 ORDER BY tablename",
@@ -93,6 +93,7 @@ test("B01: clean migrations, seven business tables, repeatable seed preserves ed
     rows.map((r) => r.tablename),
     [
       "auth_sessions",
+      "connector_reservations",
       "connectors",
       "driver_profiles",
       "organizations",

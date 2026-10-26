@@ -1,6 +1,6 @@
 # Stage 2B: протокол публичного стенда
 
-26 октября 2026 года. Статус публичного smoke: **PASS**. Проверки ниже выполнены против настоящего HTTPS API и опубликованного сайта; локальные тесты указаны отдельно. Закрытие Stage 2B требует также успешной публикации последнего merge, что проверяется по CI и состоянию Render.
+26 октября 2026 года. **Stage 2B — GREEN / CLOSED**, smoke PASS. Итоговый Foundation main 8d1a0d4 автоматически доставлен на Render с причиной new_commit (deploy dep-dbfol8bbc2fs7399h8f0, live), Pages и CI зелёные; [полный итог PR №4](https://github.com/Dude759/Kyrcovaya/pull/4). Ниже сохранена история приёмки, включая промежуточную проблему GitHub App. Следующий инкремент и его отдельный протокол — [Reservation Core](reservation-results.md).
 
 - Репозиторий: [Dude759/Kyrcovaya](https://github.com/Dude759/Kyrcovaya).
 - Основная реализация: [PR №1](https://github.com/Dude759/Kyrcovaya/pull/1), merge c2b1d01; финальная проверка и исправление роли — [PR №2](https://github.com/Dude759/Kyrcovaya/pull/2).

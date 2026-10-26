@@ -120,7 +120,7 @@ POST `/operator/forecast` → `Forecast|null` обновляет прогноз.
 
 ## Проектные дополнения для backend
 
-Поля выше отражают текущий frontend. Целевая архитектура и расширения описаны в [архитектуре](system-architecture.md), [схеме БД](database-design.md) и [плане реализации](backend-implementation-plan.md). Из таблицы ниже в v0.1 реализованы health, stations и stations/:id; availability, CRUD, grid и прогноз остаются будущими расширениями.
+Поля выше отражают текущий frontend. Целевая архитектура и расширения описаны в [архитектуре](system-architecture.md), [схеме БД](database-design.md) и [плане реализации](backend-implementation-plan.md). В v0.2 реализованы health, stations, stations/:id и availability; CRUD, grid и прогноз остаются будущими расширениями. Точный контракт нового endpoint — [OpenAPI Stage 3A](../backend/openapi/reservations.yaml).
 
 | Метод и путь | Назначение | Доступ |
 | --- | --- | --- |
