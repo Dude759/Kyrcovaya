@@ -613,3 +613,19 @@ test("F20: parallel compensation recovery reuses one provider refund and one rec
   assert.equal(await count("test_refund_receipts"), 1);
   assert.equal((await current(p)).refunds[0].status, "succeeded");
 });
+test("F21: another success event ID after completed refund preserves completed reconciliation", async () => {
+  const p = await create();
+  await cancelPayment(pool, options, driver, p.id);
+  await send(p);
+  await recoverPayments(pool);
+  assert.equal((await current(p)).reconciliationRequired, false);
+  await send(p);
+  await send(p);
+  const result = await current(p);
+  assert.equal(result.reconciliationRequired, false);
+  assert.equal(result.refunds.length, 1);
+  assert.equal(result.refunds[0].status, "succeeded");
+  assert.equal(result.bookingId, null);
+  assert.equal(await count("test_refund_receipts"), 1);
+  assert.equal(await count("bookings"), 0);
+});
