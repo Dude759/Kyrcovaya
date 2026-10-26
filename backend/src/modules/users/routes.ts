@@ -3,6 +3,7 @@ import type { Database } from "../../db/pool.js";
 import { transaction } from "../../db/pool.js";
 import { driverProfile, operatorProfile, preferences } from "./validation.js";
 import { getUser, getPreferences } from "./repository.js";
+import { HttpError } from "../../middleware/errors.js";
 
 const preferenceColumns = {
   bookingAlerts: "booking_alerts",
@@ -13,14 +14,32 @@ const preferenceColumns = {
   reports: "reports",
 } as const;
 
-export function userRoutes(pool: Database) {
+export function userRoutes(pool: Database, publicDemo = false) {
   const router = Router();
   router.patch("/profile", async (req, res) => {
     const identity = req.identity!;
     const result = await transaction(pool, async (db) => {
-      await db.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [
-        identity.id,
-      ]);
+      const { rows } = await db.query(
+        "SELECT id,email_normalized FROM users WHERE id=$1 FOR UPDATE",
+        [identity.id],
+      );
+      const currentEmail = rows[0]?.email_normalized;
+      const sharedAccount = [
+        "driver@energotransport.test",
+        "driver2@energotransport.test",
+        "operator@energotransport.test",
+      ].includes(currentEmail);
+      if (
+        publicDemo &&
+        sharedAccount &&
+        typeof req.body?.email === "string" &&
+        req.body.email.trim().toLowerCase() !== currentEmail
+      ) {
+        throw new HttpError(
+          403,
+          "В общем учебном аккаунте нельзя менять почту. Зарегистрируйте собственный аккаунт для этой проверки.",
+        );
+      }
       if (identity.role === "driver") {
         const input = driverProfile.parse(req.body);
         await db.query(

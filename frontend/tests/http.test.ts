@@ -149,3 +149,30 @@ it("прерывает запрос, когда сервер не отвечае
   await vi.advanceTimersByTimeAsync(15000);
   await assertion;
 });
+
+it("для публичного стенда ждёт холодный запуск и не повторяет POST автоматически", async () => {
+  vi.stubEnv("VITE_API_TIMEOUT_MS", "90000");
+  vi.useFakeTimers();
+  const fetchMock = vi.fn().mockImplementation(
+    (_url, options) =>
+      new Promise((_resolve, reject) => {
+        options.signal.addEventListener("abort", () =>
+          reject(new DOMException("Aborted", "AbortError")),
+        );
+      }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  const { api } = await import("../src/services/api");
+  const assertion = expect(
+    api.login({
+      email: "demo@example.test",
+      password: "fixture",
+      role: "driver",
+    }),
+  ).rejects.toMatchObject({ status: 503 });
+  await vi.advanceTimersByTimeAsync(15000);
+  expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(false);
+  await vi.advanceTimersByTimeAsync(75000);
+  await assertion;
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});

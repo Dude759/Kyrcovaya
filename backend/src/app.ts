@@ -12,10 +12,12 @@ import { workspaceRoutes } from "./modules/workspace/routes.js";
 
 export function createApp(
   pool: Database,
-  config: Pick<Config, "origins" | "AUTH_TTL_SECONDS">,
+  config: Pick<Config, "origins" | "AUTH_TTL_SECONDS"> &
+    Partial<Pick<Config, "TRUST_PROXY_HOPS" | "PUBLIC_DEMO">>,
 ) {
   const app = express();
   app.disable("x-powered-by");
+  app.set("trust proxy", config.TRUST_PROXY_HOPS ?? 0);
   app.use(helmet());
   app.use((_req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
@@ -52,7 +54,12 @@ export function createApp(
     );
   };
   app.post(["/api/auth/recovery", "/api/auth/reset"], unavailable);
-  app.use("/api", authenticate(pool), userRoutes(pool), workspaceRoutes(pool));
+  app.use(
+    "/api",
+    authenticate(pool),
+    userRoutes(pool, config.PUBLIC_DEMO === "true"),
+    workspaceRoutes(pool),
+  );
   app.use("/api/operator", operatorOnly, unavailable);
   for (const path of [
     "/api/bookings",

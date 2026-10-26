@@ -21,6 +21,14 @@ import { ApiError } from "./errors";
 const SESSION_KEY = "energotransport:session:v1";
 export const apiMode =
   import.meta.env.VITE_API_MODE === "http" ? "http" : "mock";
+export const publicDemo = import.meta.env.VITE_PUBLIC_DEMO === "true";
+const configuredTimeout = Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000);
+const timeoutMs =
+  Number.isFinite(configuredTimeout) &&
+  configuredTimeout >= 1000 &&
+  configuredTimeout <= 120000
+    ? configuredTimeout
+    : 15000;
 const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(
   /\/$/,
   "",
@@ -46,7 +54,7 @@ export async function request<T>(
     return mockRequest<T>(path, method, body, getToken());
   }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const token = anonymous ? null : getToken();
     const response = await fetch(baseUrl + path, {

@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { type Server } from "node:http";
-import "../src/config/env.js";
+import { loadConfig } from "../src/config/env.js";
 import { createPool, type Database } from "../src/db/pool.js";
 import { migrate } from "../src/db/migrate.js";
 import { seed, demoOrganizationId } from "../seeds/seed.js";
@@ -636,4 +636,81 @@ test("HTTP boundaries: health/readiness, exact CORS origin, no cache or implemen
     ).status,
     403,
   );
+});
+
+test("Public demo: shared login identity cannot be overwritten; own profile remains persistent", async () => {
+  const demoServer = createApp(pool, {
+    origins: ["http://localhost:5173"],
+    AUTH_TTL_SECONDS: 3600,
+    PUBLIC_DEMO: "true",
+    TRUST_PROXY_HOPS: 1,
+  }).listen(0, "127.0.0.1");
+  await once(demoServer, "listening");
+  const address = demoServer.address();
+  assert(address && typeof address === "object");
+  const previous = base;
+  base = `http://127.0.0.1:${address.port}`;
+  try {
+    assert.equal(
+      (
+        await request(
+          "/api/profile",
+          "PATCH",
+          { ...profile, email: "stolen@example.test" },
+          driver.token,
+        )
+      ).status,
+      403,
+    );
+    assert.equal(
+      (
+        await request(
+          "/api/profile",
+          "PATCH",
+          { ...profile, email: "driver@energotransport.test" },
+          driver.token,
+        )
+      ).status,
+      200,
+    );
+    assert.equal(
+      (await request("/api/auth/me", "GET", undefined, driver.token)).data
+        .email,
+      "driver@energotransport.test",
+    );
+  } finally {
+    base = previous;
+    demoServer.closeAllConnections();
+    await new Promise<void>((resolve) => demoServer.close(() => resolve()));
+  }
+});
+
+test("Production configuration requires explicit origins and certificate-verified remote database", () => {
+  const keys = [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "DATABASE_URL_UNPOOLED",
+    "CORS_ORIGINS",
+  ] as const;
+  const previous = Object.fromEntries(
+    keys.map((key) => [key, process.env[key]]),
+  );
+  try {
+    process.env.NODE_ENV = "production";
+    delete process.env.DATABASE_URL_UNPOOLED;
+    process.env.DATABASE_URL =
+      "postgresql://fixture:fixture@db.example.test/fixture?sslmode=require";
+    process.env.CORS_ORIGINS = "https://dude759.github.io";
+    assert.throws(() => loadConfig(), /verify-full/);
+    process.env.DATABASE_URL =
+      "postgresql://fixture:fixture@db.example.test/fixture?sslmode=verify-full";
+    assert.deepEqual(loadConfig().origins, ["https://dude759.github.io"]);
+    delete process.env.CORS_ORIGINS;
+    assert.throws(() => loadConfig(), /explicit/);
+  } finally {
+    for (const key of keys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
 });

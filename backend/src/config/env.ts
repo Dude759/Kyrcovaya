@@ -16,6 +16,10 @@ const schema = z.object({
   CORS_ORIGINS: z
     .string()
     .default("http://localhost:5173,http://127.0.0.1:5173"),
+  DATABASE_URL_UNPOOLED: z.string().url().optional(),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(1).default(0),
+  PUBLIC_DEMO: z.enum(["true", "false"]).default("false"),
+  DEPLOY_SEED: z.enum(["true", "false"]).default("false"),
   AUTH_TTL_SECONDS: z.coerce
     .number()
     .int()
@@ -31,6 +35,20 @@ export function loadConfig() {
       `Invalid environment fields: ${result.error.issues.map((i) => i.path.join(".")).join(", ")}`,
     );
   const value = result.data;
+  if (value.NODE_ENV === "production") {
+    if (!process.env.CORS_ORIGINS)
+      throw new Error("CORS_ORIGINS must be explicit in production");
+    for (const key of ["DATABASE_URL", "DATABASE_URL_UNPOOLED"] as const) {
+      if (!value[key]) continue;
+      const url = new URL(value[key]);
+      if (
+        !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) &&
+        url.searchParams.get("sslmode") !== "verify-full"
+      ) {
+        throw new Error(`${key} must use sslmode=verify-full in production`);
+      }
+    }
+  }
   const origins = value.CORS_ORIGINS.split(",")
     .map((v) => v.trim())
     .filter(Boolean);

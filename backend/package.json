@@ -10,6 +10,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/server.js",
+    "start:public": "node dist/src/deploy.js",
     "db:migrate": "tsx src/db/migrate-cli.ts",
     "db:seed": "tsx seeds/run.ts",
     "operator:create": "tsx src/modules/users/create-operator.ts",
