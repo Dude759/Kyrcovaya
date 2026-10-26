@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { ErrorMessage } from "../components/Feedback";
@@ -22,6 +22,10 @@ function Checkout({ paymentId }: { paymentId: string }) {
   const [retry, setRetry] = useState(0);
   const action = useAction();
   const now = useNow();
+  const retryKey = useRef(crypto.randomUUID());
+  useEffect(() => {
+    retryKey.current = crypto.randomUUID();
+  }, [payment?.attempt?.id]);
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -33,7 +37,7 @@ function Checkout({ paymentId }: { paymentId: string }) {
         if (cancelled) return;
         setPayment(result);
         setError("");
-        if (result.status === "pending")
+        if (result.status === "pending" && !result.providerSuccessReceived)
           timer = setTimeout(() => void load(), 5000);
       } catch (err) {
         if (!cancelled) setError(errorMessage(err));
@@ -60,18 +64,25 @@ function Checkout({ paymentId }: { paymentId: string }) {
   )
     return <Navigate to={`/driver/payment/${payment.bookingId}`} replace />;
   const expired = payment ? Date.parse(payment.expiresAt) <= now : false;
+  const reconciliation =
+    payment?.reconciliationRequired ||
+    (payment?.providerSuccessReceived && expired);
+  const awaiting = payment?.awaitingFinalization && !expired;
   const status =
     expired && (payment?.status === "pending" || payment?.status === "failed")
       ? "cancelled"
       : payment?.status;
-  const title =
-    status === "failed"
-      ? "Оплата не прошла"
-      : status === "cancelled"
-        ? "Оплата отменена"
-        : status === "succeeded"
-          ? "Оплата подтверждена"
-          : "Подтверждение оплаты";
+  const title = reconciliation
+    ? "Тестовый результат требует сверки"
+    : awaiting
+      ? "Результат провайдера принят"
+      : status === "failed"
+        ? "Оплата не прошла"
+        : status === "cancelled"
+          ? "Оплата отменена"
+          : status === "succeeded"
+            ? "Оплата подтверждена"
+            : "Подтверждение оплаты";
   const station = data?.stations.find((s) => s.id === payment?.input.stationId);
   const confirmationUrl = payment?.confirmationUrl?.startsWith("https://")
     ? payment.confirmationUrl
@@ -81,19 +92,27 @@ function Checkout({ paymentId }: { paymentId: string }) {
       role="driver"
       active="bookings"
       title="Оплата бронирования"
-      subtitle="Проверяем статус и подтверждаем бронь"
+      subtitle={
+        payment?.test
+          ? "Тестовая оплата: статус заказа и результат провайдера"
+          : "Проверяем статус и подтверждаем бронь"
+      }
     >
       <section className="checkout-card" aria-busy={action.busy}>
         <span
           className={`status status--${status === "failed" ? "offline" : "service"}`}
         >
-          {status === "pending"
-            ? "Ожидает оплаты"
-            : status === "failed"
-              ? "Отклонена"
-              : status === "cancelled"
-                ? "Отменена"
-                : "Проверка статуса"}
+          {awaiting
+            ? "Ожидает финализации"
+            : reconciliation
+              ? "Требуется сверка"
+              : status === "pending"
+                ? "Ожидает оплаты"
+                : status === "failed"
+                  ? "Отклонена"
+                  : status === "cancelled"
+                    ? "Отменена"
+                    : "Проверка статуса"}
         </span>
         <h2>{title}</h2>
         {!payment && !error && <p role="status">Загружаем платёж…</p>}
@@ -147,14 +166,22 @@ function Checkout({ paymentId }: { paymentId: string }) {
             {status === "pending" && (
               <>
                 <p role="status">
-                  Ожидаем подтверждение. Бронь появится после успешной оплаты.
-                  Не создавайте новый платёж, пока проверяется этот.
+                  {awaiting
+                    ? "Тестовый провайдер сообщил об успехе. Подтверждённая бронь ещё не создана: финализация появится на следующем этапе. Повторять оплату не нужно."
+                    : reconciliation
+                      ? "Тестовый результат сохранён для сверки. Бронь не подтверждена; повторять оплату не нужно."
+                      : "Ожидаем результат провайдера. Не создавайте новый платёж, пока проверяется этот."}
                 </p>
                 <small>
                   До {dateTime(payment.expiresAt)} · окончательная стоимость
                   зависит от полученной энергии.
                 </small>
-                {apiMode === "mock" ? (
+                {payment.providerSuccessReceived ? (
+                  <p className="demo-note">
+                    Тестовый режим: деньги не списываются, банковские реквизиты
+                    не используются.
+                  </p>
+                ) : apiMode === "mock" ? (
                   <div className="demo-checkout">
                     <p className="demo-note">
                       Тестовый платёж. Деньги не списываются, данные карты не
@@ -208,36 +235,49 @@ function Checkout({ paymentId }: { paymentId: string }) {
                   >
                     Проверить статус
                   </button>
-                  <button
-                    className="text-link"
-                    disabled={action.busy}
-                    onClick={() =>
-                      void update(() => api.cancelPayment(payment.id))
-                    }
-                  >
-                    Отменить оплату
-                  </button>
+                  {!payment.providerSuccessReceived && (
+                    <button
+                      className="text-link"
+                      disabled={action.busy}
+                      onClick={() =>
+                        void update(() => api.cancelPayment(payment.id))
+                      }
+                    >
+                      Отменить оплату
+                    </button>
+                  )}
                 </div>
               </>
             )}
             {status === "failed" && (
               <>
                 <p role="alert">{payment.failure}</p>
-                <button
-                  className="button"
-                  disabled={action.busy || expired}
-                  onClick={() =>
-                    void update(() => api.retryPayment(payment.id))
-                  }
-                >
-                  {action.busy ? "Повторяем…" : "Повторить оплату"}
-                </button>
+                {!payment.providerSuccessReceived && (
+                  <button
+                    className="button"
+                    disabled={action.busy || expired}
+                    onClick={() =>
+                      void update(() =>
+                        api.retryPayment(payment.id, retryKey.current),
+                      )
+                    }
+                  >
+                    {action.busy ? "Повторяем…" : "Повторить оплату"}
+                  </button>
+                )}
+                {payment.providerSuccessReceived && (
+                  <p>
+                    Результат тестового провайдера сохранён для сверки.
+                    Подтверждённая бронь не создана; повторять оплату не нужно.
+                  </p>
+                )}
               </>
             )}
             {status === "cancelled" && (
               <p>
-                {expired ? "Время ожидания истекло." : "Бронь не создана."} Вы
-                можете выбрать другое время или способ оплаты.
+                {reconciliation
+                  ? "Результат тестового провайдера сохранён для сверки. Бронь не подтверждена; повторять оплату не нужно."
+                  : `${expired ? "Время ожидания истекло." : "Бронь не создана."} Вы можете выбрать другое время или способ оплаты.`}
               </p>
             )}
             <ErrorMessage message={action.error} />

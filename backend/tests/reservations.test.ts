@@ -526,7 +526,7 @@ test("R16: availability validates query/timezone/horizon and preserves role boun
   );
   assert.equal(
     (await request("/api/payments", driverToken, "POST", {})).status,
-    501,
+    400,
   );
   assert.equal(
     (await request("/api/reservations", driverToken, "POST", {})).status,

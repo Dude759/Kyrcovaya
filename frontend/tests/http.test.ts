@@ -14,6 +14,34 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it("передаёт Idempotency-Key заголовком для HTTP checkout и retry", async () => {
+  const fetchMock = vi
+    .fn()
+    .mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ id: "p" }), { status: 200 }),
+      ),
+    );
+  vi.stubGlobal("fetch", fetchMock);
+  const { api } = await import("../src/services/api");
+  const input = {
+    stationId: "station",
+    connector: "CCS2" as const,
+    start: "2026-10-27T18:00:00+03:00",
+    duration: 60,
+    payment: "card" as const,
+  };
+  await api.checkout(input, "checkout-key-fixture");
+  expect(fetchMock.mock.calls[0][1].headers["Idempotency-Key"]).toBe(
+    "checkout-key-fixture",
+  );
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ input });
+  await api.retryPayment("p", "retry-key-fixture");
+  expect(fetchMock.mock.calls[1][1].headers["Idempotency-Key"]).toBe(
+    "retry-key-fixture",
+  );
+});
+
 it("отправляет авторизацию и JSON на выбранный сервер", async () => {
   const fetchMock = vi
     .fn()

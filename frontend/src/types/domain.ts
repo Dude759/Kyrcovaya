@@ -102,4 +102,13 @@ export type Payment = {
   expiresAt: string;
   failure: string | null;
   confirmationUrl?: string;
+  test?: boolean;
+  providerSuccessReceived?: boolean;
+  awaitingFinalization?: boolean;
+  reconciliationRequired?: boolean;
+  attempt?: {
+    id: string;
+    number: number;
+    status: "pending" | "succeeded" | "failed" | "cancelled" | "expired";
+  };
 };

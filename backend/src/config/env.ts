@@ -20,6 +20,23 @@ const schema = z.object({
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(1).default(0),
   PUBLIC_DEMO: z.enum(["true", "false"]).default("false"),
   DEPLOY_SEED: z.enum(["true", "false"]).default("false"),
+  PAYMENT_PUBLIC_ORIGIN: z
+    .string()
+    .url()
+    .refine((v) => {
+      const url = new URL(v);
+      return (
+        url.protocol === "https:" &&
+        url.pathname === "/" &&
+        !url.username &&
+        !url.password &&
+        !url.search &&
+        !url.hash
+      );
+    })
+    .transform((v) => new URL(v).origin)
+    .optional(),
+  PAYMENT_WEBHOOK_SECRET: z.string().min(32).max(256).optional(),
   AUTH_TTL_SECONDS: z.coerce
     .number()
     .int()
@@ -35,6 +52,11 @@ export function loadConfig() {
       `Invalid environment fields: ${result.error.issues.map((i) => i.path.join(".")).join(", ")}`,
     );
   const value = result.data;
+  if (
+    Boolean(value.PAYMENT_PUBLIC_ORIGIN) !==
+    Boolean(value.PAYMENT_WEBHOOK_SECRET)
+  )
+    throw new Error("Set both payment provider environment fields");
   if (value.NODE_ENV === "production") {
     if (!process.env.CORS_ORIGINS)
       throw new Error("CORS_ORIGINS must be explicit in production");

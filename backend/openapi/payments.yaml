@@ -1,0 +1,307 @@
+openapi: 3.1.0
+info:
+  title: Энерготранспорт — Test Payments
+  version: 0.3.0
+  description: |
+    Stage 3B. Тестовые деньги; реквизиты карты не вводятся и не хранятся.
+    Provider success завершает попытку, а не заказ: payment=pending, awaitingFinalization=true,
+    bookingId=null. Финализация payment + confirmed reservation + booking появится в Stage 3C.
+    POST /bookings остаётся 501. Workspace сохраняет Foundation-формат, без платёжной истории.
+servers:
+  - url: https://energotransport-api-dude759.onrender.com/api
+security:
+  - bearerAuth: []
+paths:
+  /payments:
+    post:
+      operationId: createTestPayment
+      summary: Создать неизменяемый заказ, hold и первую попытку одной транзакцией
+      description: |
+        Только driver. Idempotency-Key обязателен. Один user + key + канонический payload возвращают
+        тот же payment с текущим состоянием; другой payload с этим ключом — 409.
+        В hash входят stationId, connector, нормализованный UTC start, duration и payment method.
+        Сумма, тариф и энергия рассчитываются сервером по выбранному физическому порту/профилю.
+        Неизвестные поля, в том числе amount/cardNumber/cvv, отклоняются.
+        TTL=min(15 минут, start); пересекающиеся pending-заказы одного водителя не разрешены.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateInput" }
+      responses:
+        "201": { $ref: "#/components/responses/Payment" }
+        "200": { $ref: "#/components/responses/Payment" }
+        "400": { $ref: "#/components/responses/Invalid" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /payments/{id}:
+    parameters:
+      - $ref: "#/components/parameters/PaymentId"
+    get:
+      operationId: getTestPayment
+      summary: Получить только свой платёж и обработать истечение срока
+      description: GET может зафиксировать наступивший timeout. Истечение после provider success требует сверки, не создаёт бронь и не продлевает hold.
+      responses:
+        "200": { $ref: "#/components/responses/Payment" }
+        "400": { $ref: "#/components/responses/Invalid" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /payments/{id}/retry:
+    parameters:
+      - $ref: "#/components/parameters/PaymentId"
+    post:
+      operationId: retryTestPayment
+      summary: После отказа провайдера повторно удержать тот же порт и создать новую попытку
+      description: |
+        Требуется новый Idempotency-Key для намерения retry; повтор этого ключа не создаёт попытку.
+        Заказ, сумма, порт, период и expiresAt не меняются. Тот же reservation переводится обратно
+        в held; занятый другим заказом порт даёт 409. Retry pending/cancelled/expired и после success запрещён.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        "200": { $ref: "#/components/responses/Payment" }
+        "400": { $ref: "#/components/responses/Invalid" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /payments/{id}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/PaymentId"
+    post:
+      operationId: cancelTestPayment
+      summary: Отменить свою попытку и освободить hold
+      description: Идемпотентно по заказу. После success провайдера — 409, требуется будущая финализация/сверка. Истёкший заказ возвращается с failure expired.
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        "200": { $ref: "#/components/responses/Payment" }
+        "400": { $ref: "#/components/responses/Invalid" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /integrations/payments/test/events:
+    post:
+      operationId: receiveSignedTestEvent
+      summary: Подписанный inbox тестового провайдера
+      security:
+        - eventSignature: []
+      description: |
+        Подпись проверяется над исходными JSON-байтами до разбора тела, лимит 4 КБ, без HTTP compression.
+        X-Test-Payment-Signature=hex(HMAC-SHA256(secret, timestamp + '.' + rawBody)).
+        Допуск времени ±300 секунд; сравнение timingSafeEqual. Bearer пользователя не заменяет подпись.
+        После проверки подписи сохраняются только разрешённые поля и hash нормализованного события.
+        UNIQUE(test,providerEventId) дедуплицирует даже повтор после перезапуска/с другим порядком JSON-полей.
+        Другие данные с прежним ID — 409. amountKopecks/currency проверяются по заказу.
+        Поздний success сохраняется с requiresReconciliation; бронь и автоматический возврат в 3B не создаются.
+      parameters:
+        - in: header
+          name: X-Test-Payment-Timestamp
+          required: true
+          schema: { type: string, pattern: '^\d{10}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                [
+                  providerEventId,
+                  providerPaymentId,
+                  outcome,
+                  amountKopecks,
+                  currency,
+                ]
+              properties:
+                providerEventId: { type: string, minLength: 1, maxLength: 160 }
+                providerPaymentId: { type: string, format: uuid }
+                outcome: { type: string, enum: [succeeded, failed, cancelled] }
+                amountKopecks: { type: integer, minimum: 0 }
+                currency: { type: string, const: RUB }
+      responses:
+        "200":
+          description: Событие обработано или уже известно; duplicate=true не выполняет второй эффект
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [received, duplicate]
+                properties:
+                  received: { type: boolean, const: true }
+                  duplicate: { type: boolean }
+                  result:
+                    {
+                      type: string,
+                      enum:
+                        [
+                          awaiting_booking,
+                          applied,
+                          ignored_terminal,
+                          late_success,
+                        ],
+                    }
+        "400": { $ref: "#/components/responses/Invalid" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { description: Событие больше 4 КБ }
+        "503": { $ref: "#/components/responses/Unavailable" }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+    eventSignature: { type: apiKey, in: header, name: X-Test-Payment-Signature }
+  parameters:
+    PaymentId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema:
+        {
+          type: string,
+          minLength: 16,
+          maxLength: 128,
+          pattern: "^[A-Za-z0-9_.:~-]+$",
+        }
+  responses:
+    Payment:
+      description: Текущий снимок своего тестового заказа; bookingId всегда null
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Payment" }
+    Invalid:
+      description: Некорректные поля/ключ; неизвестные поля запрещены
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthenticated:
+      description: Нет токена пользователя либо подпись провайдера недействительна/устарела
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Нужна роль driver или источник не разрешён
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Свой заказ/станция/попытка не найдены
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Изменён payload прежнего ключа, нет порта, сумма события не совпадает либо состояние запрещает операцию
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unavailable:
+      description: Окружение тестового провайдера не настроено
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+    CreateInput:
+      type: object
+      additionalProperties: false
+      required: [input]
+      properties:
+        input:
+          type: object
+          additionalProperties: false
+          required: [stationId, connector, start, duration, payment]
+          properties:
+            stationId: { type: string, minLength: 1, maxLength: 80 }
+            connector: { type: string, enum: [CCS2, CHAdeMO, Type 2] }
+            start: { type: string, format: date-time }
+            duration: { type: integer, enum: [30, 45, 60, 90] }
+            payment: { type: string, enum: [card, sbp] }
+    Payment:
+      type: object
+      required:
+        [
+          id,
+          userId,
+          input,
+          amount,
+          amountKopecks,
+          tariffKopecks,
+          estimatedEnergyKwh,
+          status,
+          bookingId,
+          createdAt,
+          expiresAt,
+          failure,
+          test,
+          providerSuccessReceived,
+          awaitingFinalization,
+          reconciliationRequired,
+          attempt,
+          reservation,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        input:
+          $ref: "#/components/schemas/CreateInput/properties/input"
+        amount: { type: number, minimum: 0, description: Рубли }
+        amountKopecks: { type: integer, minimum: 0 }
+        tariffKopecks: { type: integer, minimum: 0 }
+        estimatedEnergyKwh: { type: number, minimum: 0 }
+        status: { type: string, enum: [pending, failed, cancelled] }
+        bookingId: { type: "null" }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        failure: { type: [string, "null"] }
+        test: { type: boolean, const: true }
+        providerSuccessReceived: { type: boolean }
+        awaitingFinalization: { type: boolean }
+        reconciliationRequired: { type: boolean }
+        confirmationUrl:
+          type: string
+          format: uri
+          description: HTTPS ссылка со scoped capability; только для pending попытки до provider success. Не логировать и не передавать третьим лицам.
+        attempt:
+          type: object
+          required: [id, number, status]
+          properties:
+            id: { type: string, format: uuid }
+            number: { type: integer, minimum: 1 }
+            status:
+              {
+                type: string,
+                enum: [pending, succeeded, failed, cancelled, expired],
+              }
+        reservation:
+          type: object
+          required: [id, connectorId, state]
+          properties:
+            id: { type: string, format: uuid }
+            connectorId: { type: string, format: uuid }
+            state: { type: string, enum: [held, released, expired] }

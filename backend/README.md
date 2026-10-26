@@ -1,6 +1,6 @@
-# Энерготранспорт — Backend v0.2
+# Энерготранспорт — Backend v0.3
 
-Express 5 + TypeScript, Node.js 24, PostgreSQL 17 и `pg`, без ORM. Реализованы серверные аккаунты, отзываемые сессии, профиль/настройки, каталог физических портов, стартовая рабочая область и Reservation Core. Публичное создание оплаченной брони, платежи, зарядка, управление оборудованием и ML относятся к следующим этапам.
+Express 5 + TypeScript, Node.js 24, PostgreSQL 17 и `pg`, без ORM. Реализованы аккаунты, профиль, каталог, Reservation Core и Test Payments. Оплаченная подтверждённая бронь, зарядка, управление оборудованием и ML относятся к следующим этапам.
 
 Публичная версия: [приложение](https://dude759.github.io/Kyrcovaya/), [health API](https://energotransport-api-dude759.onrender.com/health). API — Render Free, БД — Neon Free. [Конфигурация и правила публикации](../docs/public-demo.md), [протокол](../docs/testing/public-results.md). Ниже описан независимый локальный запуск с Docker; его .env не заменяется облачными секретами.
 
@@ -25,7 +25,7 @@ npm start
 
 API: `http://127.0.0.1:3001`. Разработка с перезапуском: `npm run dev`. Проверка процесса: `GET /health`; проверка соединения с БД: `GET /ready`. При недоступной БД readiness возвращает 503. Миграции запускаются отдельно, при старте сервера схема автоматически не изменяется.
 
-При собственной PostgreSQL задайте URL существующей БД и пропустите Docker-команды. Для внешней БД TLS настраивается средствами строки подключения/доверенного CA; проверку сертификата код не отключает. Публичное размещение в этом инкременте не выполняется.
+При собственной PostgreSQL задайте URL существующей БД и пропустите Docker-команды. Для внешней БД TLS настраивается средствами строки подключения/доверенного CA; проверку сертификата код не отключает. Публичное размещение описано отдельно в docs/public-demo.md.
 
 ## Подключение интерфейса
 
@@ -71,6 +71,11 @@ Seed запускается отдельной командой и сохран�
 | GET `/api/stations/:id` | Совместимая карточка Station; чужой объект для оператора — 404 |
 | GET `/api/stations/:id/connectors` | Отдельные физические порты с ID, типом, мощностью и состоянием |
 | GET `/api/stations/:id/availability` | Только driver; start с таймзоной, duration 30/45/60/90 минут, connector; оценка свободных портов и цены без удержания |
+| POST `/api/payments` | Driver; `{input:BookingInput}` и заголовок Idempotency-Key; pending order + hold + attempt |
+| GET `/api/payments/:id` | Только свой заказ, с обработкой expiry |
+| POST `/api/payments/:id/retry` | Пустое тело, Idempotency-Key нового retry; новая попытка того же заказа/порта/TTL |
+| POST `/api/payments/:id/cancel` | Отмена до provider success, освобождение hold, идемпотентно |
+| POST `/api/integrations/payments/test/events` | HMAC подписанного raw JSON; Bearer пользователя подпись не заменяет |
 | GET `/api/workspace` | Станции, свои настройки и организация; пустые брони/сессии/платежи/события, forecast=null, stage=foundation |
 
 Фильтры каталога: `q`, `connector`, `minPowerKw`, `availableOnly=true|false`, `limit` 1–200, `cursor` из предыдущего ответа. Порядок стабильный по ID. Workspace ограничен учебным стендом до 200 станций и не обрезает его молча. Для большего каталога требуется постраничная загрузка рабочей области; публичная главная уже читает все страницы каталога.
@@ -109,3 +114,13 @@ createHold / createHoldInTransaction / releaseHold — внутренние фу
 GET availability доступен водителю, не создаёт резерв и не гарантирует свободный порт после ответа. Начало — в будущем не далее четырёх суток по часам PostgreSQL; время обязательно содержит Z или смещение. Передавайте query через URLSearchParams, чтобы +03:00 не превратилось в пробел. При отсутствии свободных портов available=0 и estimatedAmount=null. [OpenAPI](openapi/reservations.yaml), [протокол R-тестов](../docs/testing/reservation-results.md).
 
 Публичная проверка после deploy: `node scripts/public-smoke.mjs https://energotransport-api-dude759.onrender.com --reservations`. Интеграционные тесты R00–R17 включены в обычный `npm test`; R12 проверяет ожидание двух PostgreSQL-транзакций, а не два последовательных запроса. Публичный frontend сохраняет отключённое бронирование до платёжного этапа.
+
+## Test Payments — Stage 3B
+
+Миграция 003 добавляет payments/attempts/events и payment_id резерва. Снимок заказа защищён от изменений SQL-триггером, в том числе при retry; новый attempt повторно удерживает тот же physical port с исходным expiresAt. Успех провайдера оставляет payment=pending, awaitingFinalization=true, bookingId=null; CHECK запрещает business succeeded до Stage 3C. Поздний успех отмечается для сверки, а не изображает бронь или refund.
+
+Тестовый провайдер настраивается двумя серверными переменными: PAYMENT_PUBLIC_ORIGIN (HTTPS origin этого API) и PAYMENT_WEBHOOK_SECRET (случайный секрет длиной ≥32). Без обоих полей корректные платёжные операции дают 503; частичная настройка не запускает сервер. В Render значения хранятся в окружении сервиса; в локальный .env при необходимости добавляются свои. HTTP loopback не изображает HTTPS: для локальной страницы нужен HTTPS reverse proxy, либо проверяйте публичный учебный стенд. Секрет не должен иметь VITE-префикс, не выводится и не передаётся клиенту.
+
+Confirmation URL открывает собственную HTTPS-страницу тестового адаптера с явной надписью «деньги не списываются». Там нет карточных полей. Ссылка содержит scoped capability; токен не хранится в БД/логах, не публикуйте URL. POST формы до TTL генерирует подписанное событие через общий inbox; GET не является оплатой. Webhook принимает raw JSON до общего JSON parser: HMAC-SHA256 timestamp+'.'+body, ±300 секунд, hex подпись в X-Test-Payment-Signature и секунды в X-Test-Payment-Timestamp. Внешних банковских запросов внутри SQL-транзакции нет.
+
+[OpenAPI payments](openapi/payments.yaml), [P00–P19 и итог выпуска](../docs/testing/payment-results.md). Публичный smoke: `node scripts/public-smoke.mjs https://energotransport-api-dude759.onrender.com --reservations --payments`; он ждёт короткий TTL успешной тестовой попытки, чтобы не оставить активный hold. Истечение обрабатывается по требованию; отдельный scheduler, банковский биллинг и возвраты ещё не реализованы.
