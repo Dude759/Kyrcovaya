@@ -35,7 +35,7 @@ npm run dev
 - [Stage 2B: публичный протокол](docs/testing/public-results.md)
 - [Stage 3A: Reservation Core и проверка PostgreSQL-конкуренции](docs/testing/reservation-results.md)
 - [Stage 3B: Test Payments и протокол P00–P19](docs/testing/payment-results.md)
-- [Stage 3C: атомарная бронь, возврат и протокол F00–F20](docs/testing/booking-finalization-results.md)
+- [Stage 3C: атомарная бронь, возврат и протокол F00–F21](docs/testing/booking-finalization-results.md)
 - [Общий план курсовой v1.6 и контрольные точки](docs/coursework-plan.md)
 - [Анализ четырёх аналогов с официальными источниками](docs/analog-analysis.md)
 - [Use-case: диаграмма и сценарии](docs/use-cases.md)

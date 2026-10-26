@@ -143,7 +143,9 @@ export async function finalizePayment(
   await db.query(
     `UPDATE payments SET status=CASE WHEN status='succeeded' THEN status ELSE 'failed' END,
     failure_code=CASE WHEN status='succeeded' THEN failure_code WHEN $2='hold_expired' THEN 'expired' ELSE COALESCE(failure_code,'provider_failed') END,
-    finalization_reason=COALESCE(finalization_reason,$2),requires_reconciliation=true WHERE id=$1`,
+    finalization_reason=COALESCE(finalization_reason,$2),requires_reconciliation=EXISTS(
+      SELECT 1 FROM payment_compensations c WHERE c.payment_id=$1 AND c.status<>'succeeded'
+    ) WHERE id=$1`,
     [p.id, reason],
   );
   return "compensation_pending";
