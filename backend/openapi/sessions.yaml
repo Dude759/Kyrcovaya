@@ -1,0 +1,166 @@
+openapi: 3.1.0
+info:
+  title: Энерготранспорт — Server Charging Sessions
+  version: 0.5.0
+  description: |
+    Stage 3D. Только серверный имитатор; настоящая станция и банк не подключены.
+    Строгие тела запросов: энергия, мощность, SOC, цена и terminal status от клиента отклоняются.
+    POST /bookings остаётся 501; неоплаченную бронь создать нельзя.
+servers:
+  - url: https://energotransport-api-dude759.onrender.com/api
+security:
+  - bearerAuth: []
+paths:
+  /sessions:
+    post:
+      operationId: startChargingSession
+      summary: Сохранить идемпотентную команду запуска по своей оплаченной брони
+      description: |
+        Только driver. Окно запуска по часам PostgreSQL: [start, min(start+15 минут, end)).
+        Устройство повторно проверяет окно при подтверждении команды. Ранний/поздний запуск — 409.
+        Повтор той же брони возвращает ту же session; тот же user/key с другим payload — 409.
+        Проверяются confirmed booking/reservation, succeeded payment, доступность и физические лимиты.
+        starting не означает подтверждённый старт; результат следует читать через GET /sessions/:id.
+        Без доказуемого локального бюджета мощности запуск отклоняется.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [bookingId]
+              properties:
+                bookingId: { type: string, format: uuid }
+      responses:
+        '202': { $ref: '#/components/responses/SessionResult' }
+        '200': { $ref: '#/components/responses/SessionResult' }
+        '400': { description: Неверное тело или Idempotency-Key }
+        '401': { description: Требуется действительный Bearer token }
+        '403': { description: Оператор не может запускать зарядку }
+        '404': { description: Бронь отсутствует или принадлежит другому пользователю }
+        '409': { description: Окно, состояние, порт, водитель или локальный лимит не допускают запуск }
+  /sessions/{id}:
+    get:
+      operationId: getChargingSession
+      summary: Получить согласованный снимок сессии и расчёта
+      description: |
+        Driver читает только свои объекты; operator — только своей организации. Чужой ID — 404.
+        Энергия сохраняет последнее измерение. currentPowerKw=null при отсутствии связи,
+        неподтверждённом запуске, terminal state или телеметрии старше 60 секунд.
+        initialCharge/targetCharge/soc=null, socSource=unknown. startedAt до подтверждения —
+        совместимый legacy fallback requestedAt; фактическое начало только startConfirmedAt.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200': { $ref: '#/components/responses/SessionResult' }
+        '400': { description: ID не UUID }
+        '401': { description: Требуется действительный Bearer token }
+        '404': { description: Сессия отсутствует или недоступна }
+  /sessions/{id}/stop:
+    post:
+      operationId: stopChargingSession
+      summary: Сохранить команду остановки; дождаться подтверждения имитатора
+      description: |
+        Только владелец driver. Пустое тело. Ключ стабилен при сетевом повторе.
+        stopping сохраняется до подтверждённого stop и финального измерения устройства.
+        Повтор terminal session возвращает тот же расчёт, не создаёт повторный возврат.
+        Неиспользованная предоплата получает отдельный test refund: pending/submitted/succeeded.
+        Только отдельная квитанция адаптера разрешает succeeded, в том числе после рестарта.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '202': { $ref: '#/components/responses/SessionResult' }
+        '200': { $ref: '#/components/responses/SessionResult' }
+        '400': { description: Неверное тело или Idempotency-Key }
+        '401': { description: Требуется действительный Bearer token }
+        '403': { description: Оператору команда недоступна }
+        '404': { description: Чужая или отсутствующая сессия }
+        '409': { description: Ключ использован для другого запроса }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+  parameters:
+    SessionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9_.:~-]+$' }
+  responses:
+    SessionResult:
+      description: Текущее серверное состояние; 202 не является подтверждением устройства
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Session' }
+  schemas:
+    Session:
+      type: object
+      required: [id, bookingId, paymentId, userId, stationId, connectorId, connector, status, source, energyWh, energy, currentPowerKw, soc, socSource, startConfirmedAt, settlement, refund]
+      properties:
+        id: { type: string, format: uuid }
+        bookingId: { type: string, format: uuid }
+        paymentId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        stationId: { type: string }
+        connectorId: { type: string, format: uuid }
+        connector: { type: string }
+        status: { type: string, enum: [starting, active, stopping, completed, failed] }
+        source: { const: simulator }
+        requestedAt: { type: string, format: date-time }
+        startConfirmedAt: { type: [string, 'null'], format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
+        meteredAt: { type: string, format: date-time }
+        energyWh: { type: integer, minimum: 0 }
+        energy: { type: number, minimum: 0, description: Последнее измерение в кВт⋅ч }
+        currentPowerKw: { type: [number, 'null'], minimum: 0 }
+        tariffKopecks: { type: integer, minimum: 0 }
+        prepaidKopecks: { type: integer, minimum: 0 }
+        energyBudgetWh: { type: integer, minimum: 1 }
+        costKopecks: { type: integer, minimum: 0, description: Текущая стоимость по измеренной энергии; финальный счёт в settlement }
+        soc: { type: 'null' }
+        socSource: { const: unknown }
+        initialCharge: { type: 'null' }
+        targetCharge: { type: 'null' }
+        telemetryGap: { type: boolean }
+        stopReason: { type: [string, 'null'], enum: [user, prepayment_budget, reservation_end, local_limit, start_rejected, null] }
+        telemetry:
+          type: object
+          properties:
+            source: { const: simulator }
+            connection: { type: string, enum: [online, stale, offline] }
+            receivedAt: { type: string, format: date-time }
+            energy: { type: number, minimum: 0 }
+            sequenceNo: { type: integer, minimum: 0 }
+            gap: { type: boolean }
+        settlement:
+          type: [object, 'null']
+          properties:
+            id: { type: string, format: uuid }
+            energyWh: { type: integer, minimum: 0 }
+            tariffKopecks: { type: integer, minimum: 0 }
+            prepaidKopecks: { type: integer, minimum: 0 }
+            finalCostKopecks: { type: integer, description: ceil(energyWh * tariffKopecks / 1000); не больше предоплаты }
+            unusedKopecks: { type: integer, minimum: 0 }
+            source: { const: simulator }
+            reason: { type: string }
+            createdAt: { type: string, format: date-time }
+        refund:
+          type: [object, 'null']
+          properties:
+            id: { type: string, format: uuid }
+            amountKopecks: { type: integer, minimum: 1 }
+            status: { type: string, enum: [pending, submitted, succeeded] }
+            confirmedAt: { type: [string, 'null'], format: date-time }
+            test: { const: true }

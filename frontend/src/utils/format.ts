@@ -5,6 +5,13 @@ export const money = (value: number) =>
     currency: "RUB",
     maximumFractionDigits: 0,
   }).format(value);
+export const moneyPrecise = (value: number) =>
+  new Intl.NumberFormat("ru-RU", {
+    style: "currency",
+    currency: "RUB",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 export const dateTime = (value: string) =>
   new Intl.DateTimeFormat("ru-RU", {
     day: "numeric",
@@ -33,20 +40,19 @@ export function sessionMetrics(
         )
       : 0;
   battery = session.batteryCapacity ?? battery ?? 0;
+  const target = session.targetCharge ?? 100,
+    initial = session.initialCharge ?? 0;
   const meteredEnergy =
     session.status === "completed"
       ? Math.max(0, session.energy)
       : Math.min(
           session.energy + elapsed * session.power,
-          Math.max(
-            0,
-            ((session.targetCharge - session.initialCharge) / 100) * battery,
-          ),
+          Math.max(0, ((target - initial) / 100) * battery),
         );
   const energy = Math.round(meteredEnergy * 10) / 10;
   const charge = Math.min(
-    session.status === "completed" ? 100 : session.targetCharge,
-    session.initialCharge + (energy / battery) * 100,
+    session.status === "completed" ? 100 : target,
+    initial + (energy / battery) * 100,
   );
   return {
     energy,
@@ -56,9 +62,7 @@ export function sessionMetrics(
       ? Math.max(
           0,
           Math.ceil(
-            ((((session.targetCharge - charge) / 100) * battery) /
-              session.power) *
-              60,
+            ((((target - charge) / 100) * battery) / session.power) * 60,
           ),
         )
       : 0,
@@ -94,7 +98,8 @@ export function downloadCsv(filename: string, rows: (string | number)[][]) {
 }
 
 export function telemetryState(session: Session, now = Date.now()) {
-  if (session.status === "completed") return "completed";
+  if (session.status === "completed" || session.status === "failed")
+    return "completed";
   if (session.telemetry?.connection === "offline") return "offline";
   if (
     !session.telemetry ||
@@ -111,6 +116,18 @@ export function displaySessionMetrics(
   battery: number | undefined,
   now = Date.now(),
 ) {
+  if (
+    session.source === "simulator" ||
+    session.telemetry?.source === "simulator"
+  )
+    return {
+      energy: session.energy,
+      charge: 0,
+      amount:
+        (session.settlement?.finalCostKopecks ?? session.costKopecks ?? 0) /
+        100,
+      remaining: 0,
+    };
   const state = telemetryState(session, now);
   if (state === "completed") return sessionMetrics(session, battery, now);
   const sample = session.telemetry;

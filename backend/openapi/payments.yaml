@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Энерготранспорт — Test Payments
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Stage 3C. Тестовые деньги; реквизиты карты не вводятся и не хранятся.
     Проверенный success атомарно подтверждает payment, reservation и одну booking.
@@ -20,7 +20,7 @@ paths:
       description: |
         stage=bookings для driver, foundation для operator. Станции и аккаунт загружаются как ранее.
         Собственные bookings/payments упорядочены по времени, до 100 записей каждого вида.
-        Сессии/телеметрия/ML остаются пустыми. Истёкшая pending попытка не означает бронь.
+        charging=true; sessions содержит свои driver / organization operator сессии, до 100. ML отсутствует. Истёкшая pending попытка не означает бронь.
       responses:
         "200":
           description: Рабочая область пользователя

@@ -10,6 +10,7 @@ import { userRoutes } from "./modules/users/routes.js";
 import { catalogRoutes } from "./modules/catalog/routes.js";
 import { workspaceRoutes } from "./modules/workspace/routes.js";
 import { availabilityRoutes } from "./modules/reservations/availability.js";
+import { sessionRoutes } from "./modules/sessions/routes.js";
 import {
   paymentRoutes,
   testProviderRoutes,
@@ -63,7 +64,7 @@ export function createApp(
   );
   app.use(express.json({ limit: "16kb" }));
   app.get(["/health", "/api/health"], (_req, res) => {
-    res.json({ status: "ok", version: "0.4.0" });
+    res.json({ status: "ok", version: "0.5.0" });
   });
   app.get(["/ready", "/api/ready"], async (_req, res) => {
     try {
@@ -90,10 +91,10 @@ export function createApp(
     workspaceRoutes(pool, paymentOptions),
   );
   app.use("/api/payments", paymentRoutes(pool, paymentOptions));
+  app.use("/api/sessions", sessionRoutes(pool));
   app.use("/api/operator", operatorOnly, unavailable);
   for (const path of [
     "/api/bookings",
-    "/api/sessions",
     "/api/auth/password",
     "/api/auth/recovery",
     "/api/auth/reset",

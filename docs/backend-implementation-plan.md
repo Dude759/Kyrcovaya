@@ -69,3 +69,7 @@ Node.js 24 используется уже в сборке frontend; для back
 ## Stage 3C — реализованный инкремент
 
 004 + finalizePayment + driver workspace + recovery тестового возврата. Проектирование 3B не изменялось задним числом: новая миграция расширяет статус и добавляет связи. Повтор старого awaiting_booking может завершить недостающую финализацию; просроченный hold получает компенсацию без брони. Подробные [границы, F-тесты и приёмка](testing/booking-finalization-results.md). 3D (start/simulator/stop/history), оборудование, ML и мощность не входят в этот выпуск.
+
+## Stage 3D — реализованный инкремент, публичная приёмка ожидается
+
+005 → sessions/ChargerAdapter → команды/измерения → stop/целочисленный settlement → отдельный remainder refund → HTTP React/history. 001–004 сохранены, новых сервисов и секретов нет. Локально 104 backend и 68 frontend PASS; [протокол](testing/charging-results.md) содержит правила окна, бюджета и C00–C31. До совпадения CI/main/Render/Pages и публичного браузерного цикла этап не CLOSED. Далее отдельно GridAdapter, управление мощностью и ML.

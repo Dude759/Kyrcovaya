@@ -21,6 +21,9 @@ import {
   today,
 } from "../utils/format";
 import type { Booking, Session } from "../types/domain";
+import { ServerChargingPage } from "./ServerChargingPage";
+import { serverSessionLabels } from "../utils/session-status";
+import { moneyPrecise } from "../utils/format";
 
 export function BookingPage() {
   const { data, user } = useApp();
@@ -312,20 +315,32 @@ export function BookingPage() {
 }
 
 function BookingActions({ booking }: { booking: Booking }) {
-  const { mutate } = useApp();
+  const { mutate, data } = useApp();
   const navigate = useNavigate();
   const action = useAction();
   const [cancelOpen, setCancelOpen] = useState(false);
   const now = useNow();
+  const startKey = useRef(crypto.randomUUID());
   const expired = Date.parse(booking.start) + booking.duration * 60000 < now;
-  const canStart = Date.parse(booking.start) <= now + 15 * 60000 && !expired;
+  const canStart =
+    apiMode === "http"
+      ? Date.parse(booking.start) <= now &&
+        now <
+          Math.min(
+            Date.parse(booking.start) + 15 * 60000,
+            Date.parse(booking.start) + booking.duration * 60000,
+          )
+      : Date.parse(booking.start) <= now + 15 * 60000 && !expired;
   async function start() {
     const result = await action.run(() =>
-      mutate(() => api.start(booking.id), "Зарядка началась"),
+      mutate(
+        () => api.start(booking.id, startKey.current),
+        apiMode === "http" ? "Команда запуска сохранена" : "Зарядка началась",
+      ),
     );
     if (result) navigate(`/driver/charging?session=${result.id}`);
   }
-  if (apiMode === "http")
+  if (apiMode === "http" && !data?.charging)
     return (
       <p className="demo-note">
         Бронь сохранена на сервере. Запуск зарядки и отмена подтверждённой брони
@@ -348,15 +363,27 @@ function BookingActions({ booking }: { booking: Booking }) {
                 ? "Начать зарядку"
                 : "Начало ближе ко времени брони"}
           </button>
-          <button
-            className="button button--outline"
-            disabled={action.busy}
-            onClick={() => setCancelOpen(true)}
-          >
-            Отменить бронь
-          </button>
+          {apiMode === "mock" && (
+            <button
+              className="button button--outline"
+              disabled={action.busy}
+              onClick={() => setCancelOpen(true)}
+            >
+              Отменить бронь
+            </button>
+          )}
         </div>
       )}
+      {apiMode === "http" &&
+        booking.status === "used" &&
+        data?.sessions.find((s) => s.bookingId === booking.id) && (
+          <Link
+            className="button button--outline"
+            to={`/driver/charging?session=${data.sessions.find((s) => s.bookingId === booking.id)!.id}`}
+          >
+            Открыть сессию
+          </Link>
+        )}
       {cancelOpen && (
         <Modal
           title="Отменить бронирование?"
@@ -586,7 +613,14 @@ function ReceiptButton({ session }: { session: Session }) {
           ["Окончание", session.endedAt ? dateTime(session.endedAt) : ""],
           ["Энергия, кВт⋅ч", session.energy.toFixed(2)],
           ["Тариф, ₽/кВт⋅ч", session.tariff],
-          ["Сумма, ₽", Math.round(session.energy * session.tariff)],
+          [
+            "Сумма, ₽",
+            session.source === "simulator"
+              ? (session.settlement?.finalCostKopecks ??
+                  session.costKopecks ??
+                  0) / 100
+              : Math.round(session.energy * session.tariff),
+          ],
         ])
       }
     >
@@ -610,7 +644,11 @@ export function SessionsPage() {
             <span
               className={`status status--${s.status === "active" ? "available" : "service"}`}
             >
-              {s.status === "active" ? "Зарядка идёт" : "Завершена"}
+              {s.source === "simulator"
+                ? serverSessionLabels[s.status]
+                : s.status === "active"
+                  ? "Зарядка идёт"
+                  : "Завершена"}
             </span>
             <h2>
               {
@@ -619,20 +657,27 @@ export function SessionsPage() {
               }
             </h2>
             <p>
-              {dateTime(s.startedAt)} · {s.connector}
+              {s.source === "simulator" && !s.startConfirmedAt
+                ? "Запуск ещё не подтверждён"
+                : dateTime(s.startedAt)}{" "}
+              · {s.connector}
             </p>
             <dl className="details-list">
               <div>
                 <dt>Энергия</dt>
                 <dd>
-                  {sessionMetrics(s, s.batteryCapacity, now).energy.toFixed(1)}{" "}
+                  {sessionMetrics(s, s.batteryCapacity, now).energy.toFixed(
+                    s.source === "simulator" ? 3 : 1,
+                  )}{" "}
                   кВт⋅ч
                 </dd>
               </div>
               <div>
                 <dt>Стоимость</dt>
                 <dd>
-                  {money(sessionMetrics(s, s.batteryCapacity, now).amount)}
+                  {(s.source === "simulator" ? moneyPrecise : money)(
+                    sessionMetrics(s, s.batteryCapacity, now).amount,
+                  )}
                 </dd>
               </div>
             </dl>
@@ -661,6 +706,7 @@ export function ChargingPage() {
   const [stopOpen, setStopOpen] = useState(false);
   const [support, setSupport] = useState(false);
   const now = useNow();
+  if (apiMode === "http") return <ServerChargingPage />;
   const session =
     data!.sessions.find((s) => s.id === params.get("session")) ??
     (!params.get("session")
@@ -740,7 +786,7 @@ export function ChargingPage() {
           <p>До желаемого уровня</p>
           <h2>
             {active && connected
-              ? metrics.charge >= session.targetCharge
+              ? metrics.charge >= (session.targetCharge ?? 100)
                 ? "Желаемый уровень достигнут"
                 : `Осталось примерно ${metrics.remaining} минут`
               : active

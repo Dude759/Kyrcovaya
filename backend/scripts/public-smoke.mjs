@@ -509,6 +509,158 @@ if (process.argv.includes("--payments")) {
   pass(
     "Late success queues an idempotent compensation and completes only after durable test-adapter receipt",
   );
+  if (process.argv.includes("--charging")) {
+    const startKey = randomUUID();
+    const started = await call(
+      "/api/sessions",
+      "POST",
+      { bookingId: success.data.bookingId },
+      token,
+      frontendOrigin,
+      { "Idempotency-Key": startKey },
+    );
+    assert.equal(started.status, 202);
+    assert.equal(started.data.status, "starting");
+    assert.equal(started.data.startConfirmedAt, null);
+    const repeated = await call(
+      "/api/sessions",
+      "POST",
+      { bookingId: success.data.bookingId },
+      token,
+      frontendOrigin,
+      { "Idempotency-Key": startKey },
+    );
+    assert.equal(repeated.data.id, started.data.id);
+    let session;
+    for (let i = 0; i < 35; i++) {
+      const read = await call(
+        `/api/sessions/${started.data.id}`,
+        "GET",
+        undefined,
+        token,
+      );
+      assert.equal(read.status, 200);
+      session = read.data;
+      if (session.status === "active" && session.energyWh > 0) break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    assert.equal(session.status, "active");
+    assert(session.startConfirmedAt);
+    assert(session.energyWh > 0);
+    assert.equal(session.source, "simulator");
+    assert.equal(session.soc, null);
+    assert.equal(session.initialCharge, null);
+    assert.equal(session.telemetry.source, "simulator");
+    assert.equal(
+      (
+        await call(
+          `/api/sessions/${session.id}`,
+          "GET",
+          undefined,
+          isolated.data.token,
+        )
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await call(
+          `/api/sessions/${session.id}`,
+          "GET",
+          undefined,
+          operator.data.token,
+        )
+      ).status,
+      200,
+    );
+    pass(
+      "Server start awaits adapter, repeated key reuses session, measured simulator energy advances and role scope is enforced",
+    );
+    const stopKey = randomUUID();
+    const stopping = await call(
+      `/api/sessions/${session.id}/stop`,
+      "POST",
+      {},
+      token,
+      frontendOrigin,
+      { "Idempotency-Key": stopKey },
+    );
+    assert([200, 202].includes(stopping.status));
+    for (let i = 0; i < 30; i++) {
+      session = (
+        await call(`/api/sessions/${session.id}`, "GET", undefined, token)
+      ).data;
+      if (
+        session.status === "completed" &&
+        (!session.refund || session.refund.status === "succeeded")
+      )
+        break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    assert.equal(session.status, "completed");
+    assert(session.endedAt);
+    assert(session.settlement);
+    assert(Number.isInteger(session.settlement.finalCostKopecks));
+    assert.equal(
+      session.settlement.finalCostKopecks,
+      Math.ceil((session.energyWh * session.tariffKopecks) / 1000),
+    );
+    assert.equal(
+      session.settlement.finalCostKopecks + session.settlement.unusedKopecks,
+      session.prepaidKopecks,
+    );
+    assert(session.settlement.finalCostKopecks <= session.prepaidKopecks);
+    assert.equal(session.refund.status, "succeeded");
+    assert(session.refund.confirmedAt);
+    assert.equal(
+      session.refund.amountKopecks,
+      session.settlement.unusedKopecks,
+    );
+    const stopped = await call(
+      `/api/sessions/${session.id}/stop`,
+      "POST",
+      {},
+      token,
+      frontendOrigin,
+      { "Idempotency-Key": stopKey },
+    );
+    assert.deepEqual(stopped.data.settlement, session.settlement);
+    pass(
+      "Acknowledged stop fixes measured Wh, immutable kopeck settlement and separate confirmed remainder refund",
+    );
+    const reentered = await call("/api/auth/login", "POST", {
+      email,
+      password,
+      role: "driver",
+    });
+    assert.equal(reentered.status, 200);
+    const history = (
+      await call("/api/workspace", "GET", undefined, reentered.data.token)
+    ).data;
+    assert.equal(history.charging, true);
+    assert.equal(
+      history.sessions.find((s) => s.id === session.id).status,
+      "completed",
+    );
+    assert.equal(
+      history.bookings.find((b) => b.id === success.data.bookingId).status,
+      "used",
+    );
+    await call("/api/auth/logout", "POST", undefined, reentered.data.token);
+    console.log(
+      JSON.stringify({
+        phase: "CHARGING_FIXTURE_COMPLETED",
+        sessionId: session.id,
+        bookingId: success.data.bookingId,
+        energyWh: session.energyWh,
+        finalCostKopecks: session.settlement.finalCostKopecks,
+        refundKopecks: session.refund.amountKopecks,
+      }),
+    );
+    pass(
+      "Completed charging and confirmed refund survive a new login in persistent workspace history",
+    );
+  }
 }
 await call("/api/auth/logout", "POST", undefined, isolated.data.token);
 await call("/api/auth/logout", "POST", undefined, operator.data.token);

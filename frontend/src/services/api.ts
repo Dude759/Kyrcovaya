@@ -156,9 +156,23 @@ export const api = {
       ...(apiMode === "mock" ? { scenario } : {}),
     }),
   cancel: (id: string) => request<Booking>(`/bookings/${id}/cancel`, "POST"),
-  start: (bookingId: string) =>
-    request<Session>("/sessions", "POST", { bookingId }),
-  stop: (id: string) => request<Session>(`/sessions/${id}/stop`, "POST"),
+  start: (bookingId: string, key = crypto.randomUUID()) =>
+    request<Session>(
+      "/sessions",
+      "POST",
+      { bookingId },
+      false,
+      apiMode === "http" ? { "Idempotency-Key": key } : {},
+    ),
+  session: (id: string) => request<Session>(`/sessions/${id}`),
+  stop: (id: string, key = crypto.randomUUID()) =>
+    request<Session>(
+      `/sessions/${id}/stop`,
+      "POST",
+      undefined,
+      false,
+      apiMode === "http" ? { "Idempotency-Key": key } : {},
+    ),
   station: (id: string, input: { limitKw?: number; service?: boolean }) =>
     request(`/operator/stations/${id}`, "PATCH", input),
   network: (networkLimit: number) =>

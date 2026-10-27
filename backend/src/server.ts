@@ -2,6 +2,8 @@ import { loadConfig } from "./config/env.js";
 import { createPool } from "./db/pool.js";
 import { createApp } from "./app.js";
 import { recoverPayments } from "./modules/payments/service.js";
+import { SimulatorChargerAdapter } from "./modules/sessions/adapter.js";
+import { runChargingCycle } from "./modules/sessions/service.js";
 const config = loadConfig();
 const pool = createPool(config.DATABASE_URL);
 try {
@@ -30,13 +32,31 @@ function recover() {
 }
 recover();
 const recoveryTimer = setInterval(recover, 15000).unref();
+const charger = new SimulatorChargerAdapter(pool);
+let charging: Promise<void> | undefined;
+function charge() {
+  if (stopping || charging) return;
+  charging = runChargingCycle(pool, charger)
+    .catch(() =>
+      console.error(
+        "Charging recovery failed; durable commands will be retried",
+      ),
+    )
+    .finally(() => {
+      charging = undefined;
+    });
+}
+charge();
+const chargingTimer = setInterval(charge, 1000).unref();
 function shutdown() {
   if (stopping) return;
   stopping = true;
   clearInterval(recoveryTimer);
+  clearInterval(chargingTimer);
   const timer = setTimeout(() => process.exit(1), 10000).unref();
   server.close(async () => {
     await recovering;
+    await charging;
     await pool.end();
     clearTimeout(timer);
     process.exit(0);

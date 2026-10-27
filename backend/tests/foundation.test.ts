@@ -94,6 +94,9 @@ test("B01: clean migrations, foundation and reservation tables, repeatable seed 
     [
       "auth_sessions",
       "bookings",
+      "charging_command_requests",
+      "charging_commands",
+      "charging_sessions",
       "connector_reservations",
       "connectors",
       "driver_profiles",
@@ -103,8 +106,15 @@ test("B01: clean migrations, foundation and reservation tables, repeatable seed 
       "payment_events",
       "payments",
       "schema_migrations",
+      "session_measurements",
+      "session_refunds",
+      "session_settlements",
+      "simulator_command_receipts",
+      "simulator_devices",
+      "simulator_session_state",
       "stations",
       "test_refund_receipts",
+      "test_session_refund_receipts",
       "user_preferences",
       "users",
     ],
@@ -592,7 +602,7 @@ test("B09/B10: workspace is honest; unsupported server workflows never succeed",
     assert.deepEqual(data[key], []);
   assert.equal(data.forecast, null);
   assert.equal(data.stage, "bookings");
-  for (const path of ["/api/bookings", "/api/sessions", "/api/auth/password"])
+  for (const path of ["/api/bookings", "/api/auth/password"])
     assert.equal((await request(path, "POST", {}, driver.token)).status, 501);
   assert.equal(
     (await request("/api/payments", "POST", {}, driver.token)).status,

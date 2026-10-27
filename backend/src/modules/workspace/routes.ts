@@ -5,6 +5,7 @@ import { listStations } from "../catalog/service.js";
 import { getPreferences } from "../users/repository.js";
 import { paymentDto } from "../payments/service.js";
 import type { PaymentOptions } from "../payments/provider.js";
+import { sessionDto } from "../sessions/service.js";
 
 export function workspaceRoutes(
   pool: Database,
@@ -71,7 +72,15 @@ export function workspaceRoutes(
         organization: organization?.name ?? "",
         networkLimit: organization ? Number(organization.network_limit_kw) : 0,
         bookings,
-        sessions: [],
+        sessions: await Promise.all(
+          (
+            await db.query(
+              `SELECT * FROM charging_sessions WHERE ($1='driver' AND user_id=$2) OR ($1='operator' AND organization_id=$3) ORDER BY requested_at DESC LIMIT 100`,
+              [identity.role, identity.id, identity.organizationId ?? null],
+            )
+          ).rows.map((s) => sessionDto(db, s)),
+        ),
+        charging: true,
         payments,
         events: [],
         forecast: null,
