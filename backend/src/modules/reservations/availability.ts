@@ -38,7 +38,8 @@ export function availabilityRoutes(pool: Database) {
       await pool.query(
         `SELECT count(*)::int AS total, count(*) FILTER (WHERE free)::int AS available,
        min(max_power_kw) FILTER (WHERE free)::float8 AS power FROM (
-         SELECT c.max_power_kw, (c.operating_state='idle' AND $4::text='online' AND NOT EXISTS (
+         SELECT c.max_power_kw, (c.operating_state='idle' AND $4::text='online'
+         AND NOT EXISTS(SELECT 1 FROM charging_sessions cs WHERE cs.connector_id=c.id AND cs.status IN ('starting','active','stopping')) AND NOT EXISTS (
            SELECT 1 FROM connector_reservations r WHERE r.connector_id=c.id
            AND (r.state='confirmed' OR (r.state='held' AND r.expires_at>clock_timestamp()))
            AND tstzrange(r.start_at,r.end_at,'[)') && tstzrange($2::timestamptz,$3::timestamptz,'[)')

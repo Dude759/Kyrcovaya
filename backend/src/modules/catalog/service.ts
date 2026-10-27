@@ -29,7 +29,11 @@ export async function listStations(
       SELECT jsonb_agg(jsonb_build_object('type', g.type,'powerKw',g.max_power_kw,'total',g.total,'available',g.available)
         ORDER BY g.max_power_kw DESC,g.type) AS items
       FROM (SELECT c.type,c.max_power_kw,count(*)::int AS total,
-        count(*) FILTER (WHERE c.operating_state='idle' AND s.operating_state='online')::int AS available
+        count(*) FILTER (WHERE c.operating_state='idle' AND s.operating_state='online'
+          AND NOT EXISTS(SELECT 1 FROM charging_sessions cs WHERE cs.connector_id=c.id AND cs.status IN ('starting','active','stopping'))
+          AND NOT EXISTS(SELECT 1 FROM connector_reservations r WHERE r.connector_id=c.id
+            AND (r.state='confirmed' OR (r.state='held' AND r.expires_at>clock_timestamp()))
+            AND r.start_at<=clock_timestamp() AND r.end_at>clock_timestamp()))::int AS available
         FROM connectors c WHERE c.station_id=s.id AND c.archived_at IS NULL GROUP BY c.type,c.max_power_kw) g
     ) ports ON true
     WHERE s.archived_at IS NULL AND ($1::uuid IS NULL OR s.organization_id=$1)

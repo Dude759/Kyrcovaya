@@ -36,7 +36,18 @@ export type Booking = {
   duration: number;
   amount: number;
   payment: "card" | "sbp";
-  status: "confirmed" | "cancelled" | "used";
+  status: "confirmed" | "cancelled" | "expired" | "used";
+  closureReason?: "driver" | "no_show" | "session" | null;
+  closedAt?: string | null;
+  sessionId?: string | null;
+  sessionStatus?: Session["status"] | null;
+  refund?: {
+    id: string;
+    amountKopecks: number;
+    status: "pending" | "submitted" | "succeeded";
+    confirmedAt: string | null;
+    test: true;
+  } | null;
   createdAt: string;
 };
 export type Session = {

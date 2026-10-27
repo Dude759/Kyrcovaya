@@ -156,15 +156,21 @@ export async function finalizePayment(
 export async function confirmTestRefund(
   pool: Database,
   compensationId: string,
-  kind: "compensation" | "session" = "compensation",
+  kind: "compensation" | "session" | "booking" = "compensation",
 ) {
   const table =
-    kind === "session" ? "session_refunds" : "payment_compensations";
+    kind === "booking"
+      ? "booking_refunds"
+      : kind === "session"
+        ? "session_refunds"
+        : "payment_compensations";
   const ledger =
-    kind === "session"
-      ? "test_session_refund_receipts"
-      : "test_refund_receipts";
-  const reference = kind === "session" ? "refund_id" : "compensation_id";
+    kind === "booking"
+      ? "test_booking_refund_receipts"
+      : kind === "session"
+        ? "test_session_refund_receipts"
+        : "test_refund_receipts";
+  const reference = kind !== "compensation" ? "refund_id" : "compensation_id";
   return transaction(pool, async (db) => {
     const c = (
       await db.query(`SELECT * FROM ${table} WHERE id=$1`, [compensationId])

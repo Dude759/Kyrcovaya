@@ -1,0 +1,100 @@
+openapi: 3.1.0
+info:
+  title: Энерготранспорт — Booking Cancellation & No-show
+  version: 0.6.0
+  description: |
+    Учебная политика без штрафов. Подтверждённая оплата остаётся succeeded,
+    даже когда оплаченная бронь отменена; возврат — отдельная операция с квитанцией.
+servers:
+  - url: https://energotransport-api-dude759.onrender.com/api
+security:
+  - bearerAuth: []
+paths:
+  /bookings/{id}/cancel:
+    post:
+      operationId: cancelPaidBooking
+      summary: Отменить собственную бронь без какой-либо зарядной сессии
+      description: |
+        Только driver-владелец. Идемпотентность по ID брони, дополнительный ключ не нужен.
+        Строго пустое тело. В одной транзакции фиксируются первоначальная причина/время,
+        cancelled/released либо expired/expired и ровно одно полное booking refund intent.
+        После конца окна [start, min(start+15 минут, end)) причина всегда no_show,
+        даже если запрос был принят раньше, но ожидал блокировки.
+        При любой существовавшей session (starting/failed/active/stopping/completed) — 409;
+        её расчёт и возврат принадлежат Stage 3D. Used booking отменить нельзя.
+        Повтор уже обработанной отмены/неявки возвращает прежние причину, время и refund ID
+        с текущим статусом возврата. pending/submitted не означают выполненный возврат.
+        Отсутствие ответа требует повторного чтения workspace или того же POST, не нового платежа.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: Бронь закрыта; возврат может ещё ожидать квитанцию
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '400': { description: Некорректный UUID или непустое тело }
+        '401': { description: Требуется действительный Bearer token }
+        '403': { description: Оператор не может отменить бронь от лица водителя }
+        '404': { description: Бронь отсутствует или принадлежит другому водителю }
+        '409': { description: Есть зарядная сессия или неподходящее состояние }
+  /workspace:
+    get:
+      operationId: getBookingLifecycleWorkspace
+      summary: История брони, причина закрытия и подтверждение возврата
+      description: |
+        Driver видит только свои последние 100 броней и выполняет ограниченное восстановление
+        собственных no-show/refund перед согласованным snapshot. Фоновый recovery при boot
+        и примерно раз в 15 секунд обслуживает весь учебный стенд. Во время сна Free API
+        точный момент обработки не гарантируется. Доступность учитывает реальное SQL-состояние,
+        не воображаемое освобождение по таймеру; starting/active/stopping продолжают занимать порт.
+        Operator получает только сессии/станции своей организации, не чужие водительские возвраты.
+      responses:
+        '200':
+          description: Рабочая область с bookings, sessions, payments и каталогом
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookings: { type: array, items: { $ref: '#/components/schemas/Booking' } }
+        '401': { description: Требуется действительный Bearer token }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+  schemas:
+    Booking:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        paymentId: { type: string, format: uuid }
+        reservationId: { type: string, format: uuid }
+        stationId: { type: string }
+        connectorId: { type: string, format: uuid }
+        connector: { type: string }
+        start: { type: string, format: date-time }
+        duration: { type: integer }
+        amount: { type: number, description: Тестовая предоплата в рублях }
+        payment: { type: string, enum: [card, sbp] }
+        status: { type: string, enum: [confirmed, cancelled, expired, used] }
+        closureReason: { type: [string, 'null'], enum: [driver, no_show, session, null] }
+        closedAt: { type: [string, 'null'], format: date-time }
+        sessionId: { type: [string, 'null'], format: uuid }
+        sessionStatus: { type: [string, 'null'], enum: [starting, active, stopping, completed, failed, null] }
+        refund:
+          type: [object, 'null']
+          description: Только booking refund; session-причина имеет расчёт и возврат в session DTO
+          properties:
+            id: { type: string, format: uuid }
+            amountKopecks: { type: integer, minimum: 0 }
+            status: { type: string, enum: [pending, submitted, succeeded] }
+            confirmedAt: { type: [string, 'null'], format: date-time }
+            test: { const: true }

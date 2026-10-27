@@ -149,3 +149,11 @@ Driver workspace содержит свои последние 100 bookings/payme
 Счёт только после подтверждённого stop/final reading: ceil(Wh × тариф_коп / 1000). Остаток предоплаты имеет отдельные session_refunds/квитанции с pending/submitted/succeeded. 3C-компенсации сохранены отдельно. Общий финансовый бюджет защищён БД. Реальных денег и станций нет. Новых секретов или сервисов не требуется.
 
 Полная публичная проверка: `node scripts/public-smoke.mjs https://energotransport-api-dude759.onrender.com --reservations --payments --charging`. Она выполняет реальные десятисекундные измерения имитатора и сохраняет учебную историю; гонки/сбои запускаются только в `_test` БД. Локально 104 backend и 68 frontend проверок PASS; статус публичной приёмки — в PR Stage 3D. Ранние разделы 3B/3C выше описывают исторические границы, текущий контракт — 0.5.
+
+## Booking Cancellation & No-show — Stage 3E (0.6)
+
+POST `/api/bookings/:id/cancel`, driver-владелец, строго `{}`. Идемпотентность по ID брони. До любой session — полный тестовый возврат без штрафа; после окна `[start, min(start+15 минут, end))` фиксируется no_show. Любая существовавшая session, включая failed, запрещает новый booking refund: расчёт принадлежит 3D. Used нельзя отменить. Оплата остаётся succeeded, а бронь становится cancelled/expired и резерв released/expired атомарно с намерением возврата.
+
+006 сохраняет 001–005, добавляет booking_closures/booking_refunds/test_booking_refund_receipts и общий финансовый guard. Recovery при boot/примерно раз в 15 секунд, также driver workspace до snapshot; сон Free откладывает выполнение. Availability не объявляет виртуальное освобождение до SQL-перехода. UI polling броней раз в 5 секунд; pending/submitted не равны подтверждению возврата.
+
+[OpenAPI](openapi/bookings.yaml), [протокол L00–L25](../docs/testing/booking-lifecycle-results.md). Локально 130 backend / 74 frontend PASS. Публичный smoke: прежние флаги плюс `--lifecycle` (17 групп). Настоящая неявка отдельно проверяется в браузере с ожиданием полного окна. Финальный статус выпуска — в PR Stage 3E.

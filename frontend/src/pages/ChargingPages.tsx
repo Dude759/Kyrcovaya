@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Link,
   useNavigate,
@@ -24,6 +24,7 @@ import type { Booking, Session } from "../types/domain";
 import { ServerChargingPage } from "./ServerChargingPage";
 import { serverSessionLabels } from "../utils/session-status";
 import { moneyPrecise } from "../utils/format";
+import { bookingLabel } from "../utils/booking-status";
 
 export function BookingPage() {
   const { data, user } = useApp();
@@ -321,6 +322,9 @@ function BookingActions({ booking }: { booking: Booking }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const now = useNow();
   const startKey = useRef(crypto.randomUUID());
+  const sessionId =
+    booking.sessionId ??
+    data?.sessions.find((s) => s.bookingId === booking.id)?.id;
   const expired = Date.parse(booking.start) + booking.duration * 60000 < now;
   const canStart =
     apiMode === "http"
@@ -350,7 +354,15 @@ function BookingActions({ booking }: { booking: Booking }) {
   return (
     <>
       <ErrorMessage message={action.error} />
-      {booking.status === "confirmed" && (
+      {sessionId && apiMode === "http" && (
+        <Link
+          className="button button--outline"
+          to={`/driver/charging?session=${sessionId}`}
+        >
+          Открыть сессию
+        </Link>
+      )}
+      {booking.status === "confirmed" && !(apiMode === "http" && sessionId) && (
         <div className="button-row wrap">
           <button
             className="button"
@@ -363,7 +375,7 @@ function BookingActions({ booking }: { booking: Booking }) {
                 ? "Начать зарядку"
                 : "Начало ближе ко времени брони"}
           </button>
-          {apiMode === "mock" && (
+          {(apiMode === "mock" || data?.charging) && (
             <button
               className="button button--outline"
               disabled={action.busy}
@@ -374,7 +386,8 @@ function BookingActions({ booking }: { booking: Booking }) {
           )}
         </div>
       )}
-      {apiMode === "http" &&
+      {!sessionId &&
+        apiMode === "http" &&
         booking.status === "used" &&
         data?.sessions.find((s) => s.bookingId === booking.id) && (
           <Link
@@ -390,6 +403,14 @@ function BookingActions({ booking }: { booking: Booking }) {
           onClose={() => !action.busy && setCancelOpen(false)}
         >
           <p>Разъём станет доступен другим водителям.</p>
+          {apiMode === "http" && (
+            <p>
+              Учебная политика без штрафов: вся тестовая предоплата будет
+              возвращена. Возврат считается выполненным только после квитанции
+              адаптера. Если окно запуска уже истекло, сервер зафиксирует
+              неявку.
+            </p>
+          )}
           <ErrorMessage message={action.error} />
           <button
             className="button button--full"
@@ -428,11 +449,13 @@ export function PaymentResultPage() {
           <span
             className={`status status--${booking.status === "cancelled" ? "service" : "available"}`}
           >
-            {booking.status === "cancelled"
-              ? "Бронь отменена"
-              : booking.status === "used"
-                ? "Бронь использована"
-                : "Бронь подтверждена"}
+            {apiMode === "mock"
+              ? booking.status === "confirmed"
+                ? "Бронь подтверждена"
+                : booking.status === "used"
+                  ? "Бронь использована"
+                  : "Бронь отменена"
+              : bookingLabel(booking)}
           </span>
           <h2>{station?.name}</h2>
           <p>{station?.address}</p>
@@ -462,6 +485,7 @@ export function PaymentResultPage() {
             </div>
           </dl>
           <BookingActions booking={booking} />
+          <BookingRefund booking={booking} />
           <Link className="text-link" to="/driver/bookings">
             Все бронирования →
           </Link>
@@ -477,9 +501,16 @@ export function PaymentResultPage() {
   );
 }
 export function BookingsPage() {
-  const { data } = useApp();
+  const { data, refresh } = useApp();
   const [filter, setFilter] = useState("all");
   const now = useNow();
+  useEffect(() => {
+    if (apiMode !== "http") return;
+    const timer = setInterval(() => {
+      void refresh();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [refresh]);
   const unfinished = (data!.payments ?? []).filter(
     (p) =>
       p.reconciliationRequired ||
@@ -504,6 +535,7 @@ export function BookingsPage() {
             ["confirmed", "Предстоящие"],
             ["used", "Использованы"],
             ["cancelled", "Отменены"],
+            ...(apiMode === "http" ? [["expired", "Неявка"]] : []),
           ].map(([value, label]) => (
             <button
               key={value}
@@ -560,11 +592,7 @@ export function BookingsPage() {
             <span
               className={`status status--${b.status === "confirmed" ? "available" : "service"}`}
             >
-              {b.status === "confirmed"
-                ? "Подтверждена"
-                : b.status === "used"
-                  ? "Использована"
-                  : "Отменена"}
+              {bookingLabel(b)}
             </span>
             <h2>{data!.stations.find((s) => s.id === b.stationId)?.name}</h2>
             <p>
@@ -584,6 +612,7 @@ export function BookingsPage() {
               </div>
             </dl>
             <BookingActions booking={b} />
+            <BookingRefund booking={b} />
           </article>
         ))}
       </div>
@@ -595,6 +624,17 @@ export function BookingsPage() {
         />
       )}
     </AppShell>
+  );
+}
+function BookingRefund({ booking }: { booking: Booking }) {
+  if (!booking.refund) return null;
+  return (
+    <p role="status">
+      {booking.refund.status === "succeeded"
+        ? "Тестовый возврат подтверждён"
+        : "Тестовый возврат ожидается"}
+      : {moneyPrecise(booking.refund.amountKopecks / 100)}
+    </p>
   );
 }
 function ReceiptButton({ session }: { session: Session }) {

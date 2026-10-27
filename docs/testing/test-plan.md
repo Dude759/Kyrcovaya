@@ -98,3 +98,7 @@ R00 отдельно проверяет extension/миграцию/типы; R13
 ## Stage 3D — Server Charging Sessions
 
 [C00–C31 и полный протокол](charging-results.md), [серверные тесты](../../backend/tests/charging.test.ts), [UI](../../frontend/tests/charging-server-ui.test.tsx). Сохраняются прежние 72 backend/59 frontend; всего 104/68 PASS. Проверяются оплаченная собственная бронь/окно, конкуренция user/port/station, device ack, монотонность и sequence, >60-секундная телеметрия, offline/restart без backfill, идемпотентный stop, rollback, снимки/копейки/бюджет, финансовые квитанции и recovery, изоляция. Fault/race только в PostgreSQL17 `_test`. После публикации — последовательный smoke --charging и реальный браузерный цикл; локальные PASS сами по себе не закрывают этап.
+
+## Stage 3E — Booking Cancellation & No-show
+
+[Протокол L00–L25](booking-lifecycle-results.md), [тесты](../../backend/tests/lifecycle.test.ts), [UI](../../frontend/tests/booking-lifecycle-ui.test.tsx). 130/74 PASS, прежние 104/68 сохранены. Проверяются граница после locks, start/cancel/no_show, любой исторический session status, повтор/rollback/restart, отдельный booking refund, квитанции/два worker, общий бюджет, подписанный replay и отсутствие восстановления брони. Все fault/race только в `_test` PG17. Публичный smoke 17 групп и отдельные браузерные cancellation/no-show обязательны для закрытия.

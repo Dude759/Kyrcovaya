@@ -73,3 +73,7 @@ Node.js 24 используется уже в сборке frontend; для back
 ## Stage 3D — реализованный инкремент, публичная приёмка ожидается
 
 005 → sessions/ChargerAdapter → команды/измерения → stop/целочисленный settlement → отдельный remainder refund → HTTP React/history. 001–004 сохранены, новых сервисов и секретов нет. Локально 104 backend и 68 frontend PASS; [протокол](testing/charging-results.md) содержит правила окна, бюджета и C00–C31. До совпадения CI/main/Render/Pages и публичного браузерного цикла этап не CLOSED. Далее отдельно GridAdapter, управление мощностью и ML.
+
+## Stage 3E — локально PASS, публикация ожидается
+
+006 → отмена/no-show → отдельные booking refund intents/receipts → общий финансовый бюджет → HTTP history. Старые 001–005 сохранены, новых сервисов/секретов нет. 130 backend / 74 frontend PASS. [L00–L25 и политика](testing/booking-lifecycle-results.md). Завершение только после CI/main/автоматических Render+Pages одного SHA, 17 smoke-групп и браузерных cancellation/no-show.

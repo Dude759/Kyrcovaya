@@ -45,11 +45,16 @@ export async function settleSession(
     `UPDATE charging_sessions SET status=$2,ended_at=(SELECT confirmed_at FROM simulator_command_receipts WHERE command_id=$3),stop_reason=$4 WHERE id=$1`,
     [s.id, status, command.id, reason],
   );
-  if (status === "failed" || !s.started_at)
+  if (status === "failed" || !s.started_at) {
     await db.query(
       "UPDATE bookings SET status='cancelled' WHERE id=$1 AND status='confirmed'",
       [s.booking_id],
     );
+    await db.query(
+      "UPDATE connector_reservations SET state='released' WHERE booking_id=$1 AND state='confirmed'",
+      [s.booking_id],
+    );
+  }
   if (unused > 0)
     await db.query(
       `INSERT INTO session_refunds(session_id,settlement_id,payment_id,attempt_id,amount_kopecks) VALUES($1,$2,$3,$4,$5) ON CONFLICT(session_id) DO NOTHING`,
