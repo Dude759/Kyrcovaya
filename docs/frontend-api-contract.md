@@ -153,3 +153,13 @@ POST `/operator/forecast` → `Forecast|null` обновляет прогноз.
 Driver workspace: stage=bookings, собственные payments и bookings (по 100 последних), sessions/events пустые, forecast=null. Booking дополнен paymentId, reservationId, connectorId; amount — предварительная тестовая сумма, не окончательная стоимость энергии. Operator workspace остаётся foundation без чужой водительской истории.
 
 Payment дополнен finalizationReason и refunds[{id,status,reason,amount,confirmedAt,test}]. Refund pending/submitted не выполнен; succeeded допустим только при квитанции test adapter. Поздний success не восстанавливает резерв. requiresReconciliation снимается после подтверждения всех компенсаций, история причины остаётся. Checkout продолжает чтение незавершённого результата и возврата, обновляет workspace и переходит к своим броням. Reload, повторный login и возврат к pending доступны из workspace. Зарядка и отмена confirmed booking ещё закрыты.
+
+## Реализованное расширение 0.5 — Stage 3D
+
+Актуальный [OpenAPI Sessions](../backend/openapi/sessions.yaml) дополняет платежный контракт. POST sessions принимает строго `{bookingId}`, POST sessions/:id/stop — `{}`; оба требуют Idempotency-Key (16–128 разрешённых символов). Владелец driver создаёт команды, operator только читает свою организацию. GET sessions/:id возвращает согласованный снимок, чужой ID — 404. POST bookings по-прежнему 501.
+
+Статусы starting/active/stopping/completed/failed. 202 означает сохранённую команду, а не подтверждённую работу устройства. startConfirmedAt — единственное фактическое начало; legacy startedAt до ack содержит requestedAt для совместимости. Поля source=simulator, soc/initialCharge/targetCharge=null, socSource=unknown; energyWh, energy (кВт⋅ч), currentPowerKw (nullable), telemetry.connection/receivedAt/sequenceNo/gap. >60 секунд currentPowerKw=null, последняя energy остаётся. UI не экстраполирует её клиентским таймером.
+
+settlement содержит finalCostKopecks/unusedKopecks/prepaidKopecks/energyWh/tariffKopecks/reason. refund отдельно содержит amountKopecks и pending/submitted/succeeded/confirmedAt/test=true. Предоплата не является окончательной энергостоимостью. GET workspace: charging=true, последние 100 sessions (свои driver/organization operator), прежний stage=bookings/foundation сохранён. React опрашивает GET во время команды/работы/ожидающего возврата, повторяет чтение после сетевой ошибки и восстанавливает session по URL после reload/login. Отдельный mock остаётся прежним.
+
+Правило старта [start, min(start+15 минут, end)), локальная мощность и ограничения [зафиксированы в протоколе](testing/charging-results.md).

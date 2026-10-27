@@ -141,6 +141,25 @@ it("сохраняет серверную ошибку валидации", asyn
     message: "Разъём уже занят",
   });
 });
+it("sends stable charging command keys in headers without trusting browser metering", async () => {
+  const fetchMock = vi
+    .fn()
+    .mockImplementation(async () => new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const { api } = await import("../src/services/api");
+  await api.start("booking", "start-command-key");
+  await api.stop("session", "stop-command-key");
+  expect(fetchMock.mock.calls[0][1].headers["Idempotency-Key"]).toBe(
+    "start-command-key",
+  );
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    bookingId: "booking",
+  });
+  expect(fetchMock.mock.calls[1][1].headers["Idempotency-Key"]).toBe(
+    "stop-command-key",
+  );
+  expect(fetchMock.mock.calls[1][1].body).toBeUndefined();
+});
 it("распознаёт ошибку сервера даже при HTML вместо JSON", async () => {
   vi.stubGlobal(
     "fetch",

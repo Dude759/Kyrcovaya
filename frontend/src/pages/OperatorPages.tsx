@@ -1,3 +1,4 @@
+import { serverSessionLabels } from "../utils/session-status";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
@@ -6,13 +7,14 @@ import { EmptyState, ErrorMessage } from "../components/Feedback";
 import { Modal } from "../components/Modal";
 import { useAction } from "../hooks/useAction";
 import { useNow } from "../hooks/useNow";
-import { api } from "../services/api";
+import { api, apiMode } from "../services/api";
 import { useApp } from "../state/context";
 import { statusLabels } from "../data";
 import {
   dateTime,
   downloadCsv,
   money,
+  moneyPrecise,
   displaySessionMetrics as sessionMetrics,
 } from "../utils/format";
 import { ForecastPanel } from "../components/ForecastPanel";
@@ -24,7 +26,9 @@ export function OperatorDashboardPage() {
   const online = stations.filter(
     (s) => !["offline", "service"].includes(s.status),
   ).length;
-  const active = sessions.filter((s) => s.status === "active");
+  const active = sessions.filter((s) =>
+    ["starting", "active", "stopping"].includes(s.status),
+  );
   const load = stations.reduce(
     (sum, s) =>
       sum +
@@ -708,13 +712,27 @@ export function OperatorSessionsPage() {
               </span>
               <span>{s.userId.slice(0, 8)}</span>
               <span>{s.connector}</span>
-              <span>{dateTime(s.startedAt)}</span>
-              <strong>{s.power} кВт</strong>
+              <span>
+                {s.source === "simulator" && !s.startConfirmedAt
+                  ? "Запуск не подтверждён"
+                  : dateTime(s.startedAt)}
+              </span>
+              <strong>
+                {s.source === "simulator"
+                  ? s.currentPowerKw == null
+                    ? "—"
+                    : `${s.currentPowerKw} кВт`
+                  : `${s.power} кВт`}
+              </strong>
               <span>{metrics(s).energy.toFixed(1)} кВт⋅ч</span>
               <i
                 className={`status status--${s.status === "active" ? "available" : "service"}`}
               >
-                {s.status === "active" ? "Заряжается" : "Завершена"}
+                {s.source === "simulator"
+                  ? serverSessionLabels[s.status]
+                  : s.status === "active"
+                    ? "Заряжается"
+                    : "Завершена"}
               </i>
             </button>
           ))}
@@ -747,11 +765,15 @@ export function OperatorSessionsPage() {
             </div>
             <div>
               <dt>Стоимость</dt>
-              <dd>{money(metrics(current).amount)}</dd>
+              <dd>
+                {(current.source === "simulator" ? moneyPrecise : money)(
+                  metrics(current).amount,
+                )}
+              </dd>
             </div>
           </dl>
           <ErrorMessage message={action.error} />
-          {current.status === "active" && (
+          {apiMode === "mock" && current.status === "active" && (
             <button
               className="button button--full"
               disabled={action.busy}

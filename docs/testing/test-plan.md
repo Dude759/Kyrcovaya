@@ -94,3 +94,7 @@ R00 отдельно проверяет extension/миграцию/типы; R13
 ## Stage 3C — Atomic Booking Finalization
 
 [Протокол F00–F21](booking-finalization-results.md), [тесты](../../backend/tests/finalization.test.ts). Проверяются одна confirmed booking, дубликаты и конкурентные success events, точный снимок физического порта, настоящий рестарт, rollback после вставки, TTL после ожидания locks, поздний success освобождённого порта, сохранение чужой брони, старые awaiting_booking, submitted/receipt/recovery и ложный ответ адаптера. Новые UI-тесты проверяют HTTP переход, reload, сетевое чтение, pending и completed refund. Старые 50 backend/54 frontend-сценария сохранены; временные success-ожидания 3B обновлены под новую финализацию. Рабочая Neon не используется для конкурентных испытаний.
+
+## Stage 3D — Server Charging Sessions
+
+[C00–C31 и полный протокол](charging-results.md), [серверные тесты](../../backend/tests/charging.test.ts), [UI](../../frontend/tests/charging-server-ui.test.tsx). Сохраняются прежние 72 backend/59 frontend; всего 104/68 PASS. Проверяются оплаченная собственная бронь/окно, конкуренция user/port/station, device ack, монотонность и sequence, >60-секундная телеметрия, offline/restart без backfill, идемпотентный stop, rollback, снимки/копейки/бюджет, финансовые квитанции и recovery, изоляция. Fault/race только в PostgreSQL17 `_test`. После публикации — последовательный smoke --charging и реальный браузерный цикл; локальные PASS сами по себе не закрывают этап.

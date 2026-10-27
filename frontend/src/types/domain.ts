@@ -51,14 +51,45 @@ export type Session = {
   endedAt: string | null;
   energy: number;
   power: number;
-  initialCharge: number;
-  targetCharge: number;
+  initialCharge: number | null;
+  targetCharge: number | null;
   tariff: number;
-  status: "active" | "completed";
+  status: "starting" | "active" | "stopping" | "completed" | "failed";
+  source?: "simulator";
+  connectorId?: string;
+  requestedAt?: string;
+  startConfirmedAt?: string | null;
+  currentPowerKw?: number | null;
+  energyWh?: number;
+  energyBudgetWh?: number;
+  costKopecks?: number;
+  tariffKopecks?: number;
+  prepaidKopecks?: number;
+  soc?: number | null;
+  telemetryGap?: boolean;
+  stopReason?: string | null;
+  settlement?: {
+    id: string;
+    energyWh: number;
+    tariffKopecks: number;
+    prepaidKopecks: number;
+    finalCostKopecks: number;
+    unusedKopecks: number;
+    reason: string;
+    source: "simulator";
+    createdAt: string;
+  } | null;
+  refund?: {
+    id: string;
+    amountKopecks: number;
+    status: "pending" | "submitted" | "succeeded";
+    confirmedAt: string | null;
+    test: boolean;
+  } | null;
   telemetry?: {
-    source: "demo" | "device";
+    source: "demo" | "device" | "simulator";
     receivedAt: string;
-    connection: "online" | "offline";
+    connection: "online" | "offline" | "stale";
     energy: number;
   };
 };
@@ -75,6 +106,7 @@ export type Forecast = {
   points: { time: string; powerKw: number }[];
 };
 export type Snapshot = {
+  charging?: boolean;
   stage?: "foundation" | "bookings";
   stations: Station[];
   bookings: Booking[];

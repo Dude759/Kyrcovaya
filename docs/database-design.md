@@ -141,3 +141,22 @@ DDL-пример резервирования основан на [официа�
 [004_booking_finalization.sql](../backend/migrations/004_booking_finalization.sql) расширяет временный payment_stage3b_status значением succeeded, сохраняя 001–003 и payment_order_immutable. Bookings уникальны по payment, reservation и funding attempt. Составные FK защищают user/organization/station/connector/type/interval/amount/method. Обратные FK и deferred constraint triggers проверяют согласованность payment + confirmed reservation + booking при commit; временные промежуточные записи внутри транзакции допустимы, несогласованный commit — нет.
 
 payment_compensations хранит неизменяемый снимок причины/суммы/attempt/provider refund ID и pending/submitted/succeeded. test_refund_receipts отделён от намерения; составной FK с confirmed_at и проверка суммы запрещают ложный completed и удаление подтверждающей квитанции. Точность времени квитанции сохраняется SQL-копированием timestamptz, без потери микросекунд через JS Date. [F00–F21](testing/booking-finalization-results.md) покрывают транзакции, миграцию, сбои и восстановление.
+
+## Фактическая схема Stage 3D — миграция 005
+
+001–004 не изменяются. Booking сохраняет неизменный снимок, допускает confirmed→used/cancelled. Новые таблицы:
+
+| Таблица | Назначение и защита |
+| --- | --- |
+| charging_sessions | UNIQUE booking; составные FK снимка booking/payment; partial UNIQUE незавершённых user/connector; монотонная энергия, terminal freeze |
+| session_measurements | Wh/W, PG timestamp, source=simulator, sequence unique, monotone; immutable; повтор sequence с иным содержимым запрещён |
+| charging_commands | Уникальная start/stop на session, provider ID, ready/confirmed time, deliveries; terminal freeze |
+| charging_command_requests | user/key PK, request hash, составные owner/command FK |
+| simulator_devices | Внутренние online/reject/delay; нет публичного API изменения |
+| simulator_session_state | Сохраняемые energy/дробная работа/sequence/epoch; восстановление без backfill |
+| simulator_command_receipts | Неизменяемое подтверждение устройства и связанное измерение |
+| session_settlements | UNIQUE session, FK final measure/command, копеечная формула, immutable |
+| session_refunds | UNIQUE session/settlement/provider ID; pending/submitted/succeeded, точная сумма остатка |
+| test_session_refund_receipts | Отдельная неизменяемая квитанция остатка, deferred FK для подтверждения |
+
+Deferred session_result_consistency не допускает active без start receipt и used booking, completed без stop receipt/final reading/settlement, failed без отрицательного start receipt и нулевой энергии. Общий refund_budget_guard учитывает стоимость, 3C-компенсации и все намерения остатков; сумма не превышает реально успешные попытки оплаты, включая бюджет каждой попытки. Квитанция требует совпадения provider ID/amount/time. Финансовые данные и показания после завершения не исправляются задним числом. [005 SQL](../backend/migrations/005_charging_sessions.sql), [тестовый протокол](testing/charging-results.md).

@@ -156,18 +156,24 @@ export async function finalizePayment(
 export async function confirmTestRefund(
   pool: Database,
   compensationId: string,
+  kind: "compensation" | "session" = "compensation",
 ) {
+  const table =
+    kind === "session" ? "session_refunds" : "payment_compensations";
+  const ledger =
+    kind === "session"
+      ? "test_session_refund_receipts"
+      : "test_refund_receipts";
+  const reference = kind === "session" ? "refund_id" : "compensation_id";
   return transaction(pool, async (db) => {
     const c = (
-      await db.query("SELECT * FROM payment_compensations WHERE id=$1", [
-        compensationId,
-      ])
+      await db.query(`SELECT * FROM ${table} WHERE id=$1`, [compensationId])
     ).rows[0];
     if (!c || !["submitted", "succeeded"].includes(c.status))
       throw new Error("Refund has not been submitted");
     return (
       await db.query(
-        `INSERT INTO test_refund_receipts(provider_refund_id,compensation_id,amount_kopecks)
+        `INSERT INTO ${ledger}(provider_refund_id,${reference},amount_kopecks)
       VALUES($1,$2,$3) ON CONFLICT(provider_refund_id) DO UPDATE SET provider_refund_id=EXCLUDED.provider_refund_id RETURNING *`,
         [c.provider_refund_id, c.id, c.amount_kopecks],
       )
