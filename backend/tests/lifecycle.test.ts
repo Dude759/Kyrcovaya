@@ -748,12 +748,29 @@ test("L25: concurrent start and no-show after waiting past deadline selects expi
       () => true,
       () => false,
     );
-    const expiring = recoverBookingLifecycle(pool);
     await delay(1000);
+    const expiring = recoverBookingLifecycle(pool);
+    // The no-show candidate must be due BEFORE selection, and must actually wait
+    // behind the in-flight start's driver lock while start waits for payment.
+    let waiting = false;
+    for (let i = 0; i < 50; i++) {
+      waiting = (
+        await pool.query(`SELECT EXISTS(SELECT 1 FROM pg_stat_activity
+        WHERE datname=current_database() AND wait_event_type='Lock'
+        AND query LIKE '%pg_advisory_xact_lock(hashtextextended%') waiting`)
+      ).rows[0].waiting;
+      if (waiting) break;
+      await delay(20);
+    }
+    assert.equal(waiting, true, "No-show must overlap the blocked start");
     await db.query("COMMIT");
     await expiring;
     assert.equal(await outcome, false);
-    assert.equal((await booking(b)).status, "expired");
+    assert.equal(
+      (await pool.query("SELECT status FROM bookings WHERE id=$1", [b.id]))
+        .rows[0].status,
+      "expired",
+    );
     assert.equal(await count("charging_sessions"), 0);
   } finally {
     await db.query("ROLLBACK");
