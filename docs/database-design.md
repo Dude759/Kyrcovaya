@@ -160,3 +160,9 @@ payment_compensations хранит неизменяемый снимок при�
 | test_session_refund_receipts | Отдельная неизменяемая квитанция остатка, deferred FK для подтверждения |
 
 Deferred session_result_consistency не допускает active без start receipt и used booking, completed без stop receipt/final reading/settlement, failed без отрицательного start receipt и нулевой энергии. Общий refund_budget_guard учитывает стоимость, 3C-компенсации и все намерения остатков; сумма не превышает реально успешные попытки оплаты, включая бюджет каждой попытки. Квитанция требует совпадения provider ID/amount/time. Финансовые данные и показания после завершения не исправляются задним числом. [005 SQL](../backend/migrations/005_charging_sessions.sql), [тестовый протокол](testing/charging-results.md).
+
+## Фактическая схема Stage 3E — миграция 006
+
+Booking допускает confirmed→used/cancelled/expired при неизменном снимке. `booking_closures` (booking PK, reason driver/no_show, PG closed_at) неизменяема. `booking_refunds` (UNIQUE booking/provider ID, полный amount и funding attempt через составной FK) хранит pending/submitted/succeeded. `test_booking_refund_receipts` — отдельная неизменяемая квитанция; deferred FK требует provider ID/amount/confirmed_at.
+
+booking_consistency сохраняет succeeded payment/booking/attempt связи, разрешая только cancelled+released и expired+expired. booking_lifecycle_consistency требует closure/refund без любой session; отмена сессии допускается только при terminal zero-energy settlement без подтверждённого старта, без booking refund. booking_operation_guard блокирует payment/booking при INSERT session/closure, сериализуя гонку. refund_budget_guard расширен на booking refunds, сохраняя 3C/3D бюджеты. Исторические 001–005 неизменны. [006 SQL](../backend/migrations/006_booking_lifecycle.sql), [протокол](testing/booking-lifecycle-results.md).

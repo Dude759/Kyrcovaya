@@ -509,6 +509,104 @@ if (process.argv.includes("--payments")) {
   pass(
     "Late success queues an idempotent compensation and completes only after durable test-adapter receipt",
   );
+  if (process.argv.includes("--lifecycle")) {
+    const input = {
+      ...body.input,
+      start: new Date(Date.now() + 3600000).toISOString(),
+    };
+    const quoteQuery = new URLSearchParams({
+      start: input.start,
+      duration: String(input.duration),
+      connector: input.connector,
+    });
+    const order = await call(
+      "/api/payments",
+      "POST",
+      { input },
+      token,
+      frontendOrigin,
+      { "Idempotency-Key": randomUUID() },
+    );
+    assert.equal(order.status, 201);
+    await outcome(order.data, "succeeded");
+    const paid = (
+      await call(`/api/payments/${order.data.id}`, "GET", undefined, token)
+    ).data;
+    assert(paid.bookingId);
+    const cancelPath = `/api/bookings/${paid.bookingId}/cancel`;
+    assert.equal(
+      (await call(cancelPath, "POST", {}, operator.data.token)).status,
+      403,
+    );
+    const cancelled = await call(cancelPath, "POST", {}, token);
+    assert.equal(cancelled.status, 200);
+    assert.equal(cancelled.data.status, "cancelled");
+    assert.equal(cancelled.data.closureReason, "driver");
+    const repeat = await call(cancelPath, "POST", {}, token);
+    assert.equal(repeat.data.refund.id, cancelled.data.refund.id);
+    assert.equal(repeat.data.closedAt, cancelled.data.closedAt);
+    let b;
+    for (let i = 0; i < 20; i++) {
+      b = (
+        await call("/api/workspace", "GET", undefined, token)
+      ).data.bookings.find((b) => b.id === paid.bookingId);
+      if (b.refund?.status === "succeeded") break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    assert.equal(b.refund.status, "succeeded");
+    assert(b.refund.confirmedAt);
+    assert.equal(b.refund.amountKopecks, Math.round(order.data.amount * 100));
+    assert.equal(
+      (await call(`/api/payments/${order.data.id}`, "GET", undefined, token))
+        .data.reservation.state,
+      "released",
+    );
+    pass(
+      "Booking cancellation preserves its first outcome and confirms a full separate test refund with durable receipt",
+    );
+    const availability = await call(
+      `/api/stations/${input.stationId}/availability?${quoteQuery}`,
+      "GET",
+      undefined,
+      token,
+    );
+    assert(availability.data.available > 0);
+    const replacement = await call(
+      "/api/payments",
+      "POST",
+      { input },
+      token,
+      frontendOrigin,
+      { "Idempotency-Key": randomUUID() },
+    );
+    assert.equal(replacement.status, 201);
+    assert.equal(
+      replacement.data.reservation.connectorId,
+      order.data.reservation.connectorId,
+    );
+    assert.equal(
+      (
+        await call(
+          `/api/payments/${replacement.data.id}/cancel`,
+          "POST",
+          {},
+          token,
+        )
+      ).status,
+      200,
+    );
+    console.log(
+      JSON.stringify({
+        phase: "CANCELLATION_FIXTURE_COMPLETED",
+        bookingId: paid.bookingId,
+        refundId: b.refund.id,
+        amountKopecks: b.refund.amountKopecks,
+      }),
+    );
+    pass(
+      "SQL release makes the same physical port reservable again; unused replacement hold is released",
+    );
+  }
   if (process.argv.includes("--charging")) {
     const startKey = randomUUID();
     const started = await call(

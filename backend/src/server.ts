@@ -4,6 +4,7 @@ import { createApp } from "./app.js";
 import { recoverPayments } from "./modules/payments/service.js";
 import { SimulatorChargerAdapter } from "./modules/sessions/adapter.js";
 import { runChargingCycle } from "./modules/sessions/service.js";
+import { recoverBookingLifecycle } from "./modules/bookings/service.js";
 const config = loadConfig();
 const pool = createPool(config.DATABASE_URL);
 try {
@@ -23,6 +24,7 @@ let recovering: Promise<void> | undefined;
 function recover() {
   if (stopping || recovering) return;
   recovering = recoverPayments(pool)
+    .then(() => recoverBookingLifecycle(pool))
     .catch(() =>
       console.error("Payment recovery failed; durable work will be retried"),
     )

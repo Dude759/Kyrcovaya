@@ -93,6 +93,8 @@ test("B01: clean migrations, foundation and reservation tables, repeatable seed 
     rows.map((r) => r.tablename),
     [
       "auth_sessions",
+      "booking_closures",
+      "booking_refunds",
       "bookings",
       "charging_command_requests",
       "charging_commands",
@@ -113,6 +115,7 @@ test("B01: clean migrations, foundation and reservation tables, repeatable seed 
       "simulator_devices",
       "simulator_session_state",
       "stations",
+      "test_booking_refund_receipts",
       "test_refund_receipts",
       "test_session_refund_receipts",
       "user_preferences",

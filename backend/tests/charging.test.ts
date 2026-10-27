@@ -245,7 +245,7 @@ after(async () => {
 
 test("C00: migration 005 repeats; start/stop reject client telemetry and missing idempotency keys", async () => {
   await migrate(pool);
-  assert.equal(await count("schema_migrations"), 5);
+  assert.equal(await count("schema_migrations"), 6);
   const b = await paid();
   assert.equal(
     (await request("/api/sessions", "POST", { bookingId: b.id })).status,

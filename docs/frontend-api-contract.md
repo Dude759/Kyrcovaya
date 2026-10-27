@@ -163,3 +163,9 @@ Payment дополнен finalizationReason и refunds[{id,status,reason,amount,
 settlement содержит finalCostKopecks/unusedKopecks/prepaidKopecks/energyWh/tariffKopecks/reason. refund отдельно содержит amountKopecks и pending/submitted/succeeded/confirmedAt/test=true. Предоплата не является окончательной энергостоимостью. GET workspace: charging=true, последние 100 sessions (свои driver/organization operator), прежний stage=bookings/foundation сохранён. React опрашивает GET во время команды/работы/ожидающего возврата, повторяет чтение после сетевой ошибки и восстанавливает session по URL после reload/login. Отдельный mock остаётся прежним.
 
 Правило старта [start, min(start+15 минут, end)), локальная мощность и ограничения [зафиксированы в протоколе](testing/charging-results.md).
+
+## Реализованный контракт 0.6 — Stage 3E
+
+[OpenAPI Bookings](../backend/openapi/bookings.yaml): POST bookings/:id/cancel, owner driver, пустое тело, повтор по ID возвращает прежний результат. Чужой ID 404, operator 403, любая существовавшая session/used 409. После границы окна сервер фиксирует expired/no_show, даже если POST ожидал locks. POST bookings без оплаты остаётся 501.
+
+Booking DTO дополнен expired, closureReason(driver/no_show/session/null), closedAt, sessionId/sessionStatus и refund(id,amountKopecks,pending/submitted/succeeded,confirmedAt,test=true). Session-причина использует session refund, а не поле booking refund. Workspace восстанавливает собственные no-show/refund перед snapshot. UI требует подтверждения отмены, различает причину и квитанцию, обновляет историю/каталог через API. Mock сохранён. [Политика и ограничения](testing/booking-lifecycle-results.md).
