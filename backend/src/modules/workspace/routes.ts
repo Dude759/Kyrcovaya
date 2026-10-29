@@ -5,6 +5,8 @@ import { listStations } from "../catalog/service.js";
 import { getPreferences } from "../users/repository.js";
 import { paymentDto } from "../payments/service.js";
 import type { PaymentOptions } from "../payments/provider.js";
+import { listEvents } from "../operator/routes.js";
+import { stationDetail } from "../catalog/service.js";
 import { sessionDto } from "../sessions/service.js";
 import { bookingDto, recoverBookingLifecycle } from "../bookings/service.js";
 
@@ -55,7 +57,17 @@ export function workspaceRoutes(
               )
             ).rows
           : [];
+      const historical = (
+        await db.query(
+          `SELECT DISTINCT station_id FROM bookings WHERE user_id=$1 UNION SELECT DISTINCT station_id FROM charging_sessions WHERE ($2='driver' AND user_id=$1) OR ($2='operator' AND organization_id=$3)`,
+          [identity.id, identity.role, identity.organizationId ?? null],
+        )
+      ).rows;
+      for (const h of historical)
+        if (!items.some((s) => s.id === h.station_id))
+          items.push(await stationDetail(db, identity, h.station_id));
       return {
+        operatorManagement: identity.role === "operator",
         stations: items,
         preferences: await getPreferences(db, identity.id),
         organization: organization?.name ?? "",
@@ -71,7 +83,10 @@ export function workspaceRoutes(
         ),
         charging: true,
         payments,
-        events: [],
+        events:
+          identity.role === "operator"
+            ? (await listEvents(db, identity.organizationId!)).items
+            : [],
         forecast: null,
         stage: identity.role === "driver" ? "bookings" : "foundation",
       };

@@ -8,6 +8,7 @@ export type Connector = {
 export type StationStatus = "available" | "busy" | "offline" | "service";
 
 export type Station = {
+  archivedAt?: string | null;
   id: string;
   name: string;
   address: string;

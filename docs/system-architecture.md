@@ -120,3 +120,7 @@ HTTP-режим включается только после готовност�
 Booking lifecycle использует прежний lock graph 3D и PostgreSQL clock после блокировок. В одной транзакции записываются неизменяемая closure, terminal booking, освобождённый reservation и полный booking refund intent. Любая историческая session исключает эту ветку; failed/stop-before-start продолжают session settlement 3D и освобождают порт после terminal receipt. SQL guards и FK/deferred consistency не позволяют разорвать оплату/порт/причину или совместить session и booking refund.
 
 Отдельная квитанция общего test adapter завершает booking refund. Общий финансовый guard учитывает все три вида возвратов и session cost по оплате и попытке. No-show обрабатывается при boot/15-секундном recovery и в собственном driver workspace, до 20 за цикл. Сон Free не имеет гарантированного deadline. Catalog/availability держат порт занятым до реального SQL-release; unfinished sessions блокируют его независимо от интервала. [Политика, сценарии и ограничения](testing/booking-lifecycle-results.md).
+
+## Stage 4A — управление станциями оператора
+
+Миграция 007, аудит network_events и ключи operator_requests; API управления собственной организацией, физические порты, безопасные лимиты/режим/архив, HTTP формы и история. Создание service → проверенные порты → online. Архив не удаляет финансовую историю. Диагностика без показаний: «Нет данных». GridAdapter/max-min/ML/OCPP не включены. [Политика, тесты и приёмка](testing/operator-management-results.md). Публичный выпуск PENDING.

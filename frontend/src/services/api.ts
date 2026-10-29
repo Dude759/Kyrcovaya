@@ -96,6 +96,38 @@ export async function request<T>(
   }
 }
 export const api = {
+  operatorStations: () =>
+    request<{
+      items: import("../pages/OperatorManagementPage").ManagedStation[];
+    }>("/operator/stations"),
+  operatorPorts: (id: string) =>
+    request<{ items: import("../pages/OperatorManagementPage").ManagedPort[] }>(
+      `/operator/stations/${id}/connectors`,
+    ),
+  operatorSave: (
+    path: string,
+    input: unknown,
+    method: "POST" | "PATCH",
+    key?: string,
+  ) =>
+    request<{ id: string }>(
+      `/operator/${path}`,
+      method,
+      input,
+      false,
+      key ? { "Idempotency-Key": key } : {},
+    ),
+  operatorEvents: (cursor?: string) =>
+    request<{
+      items: Array<{
+        id: string;
+        actorId: string;
+        stationId: string;
+        action: string;
+        date: string;
+      }>;
+      nextCursor: string | null;
+    }>(`/operator/events?limit=10${cursor ? "&cursor=" + cursor : ""}`),
   me: () => request<User>("/auth/me"),
   login: (input: Credentials) =>
     request<AuthResult>("/auth/login", "POST", input),

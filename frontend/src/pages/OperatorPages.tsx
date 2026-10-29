@@ -1,4 +1,5 @@
 import { serverSessionLabels } from "../utils/session-status";
+import { OperatorManagementPage } from "./OperatorManagementPage";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
@@ -171,6 +172,13 @@ export function OperatorDashboardPage() {
 }
 
 export function OperatorStationsPage() {
+  return apiMode === "http" ? (
+    <OperatorManagementPage />
+  ) : (
+    <MockOperatorStationsPage />
+  );
+}
+function MockOperatorStationsPage() {
   const { data, mutate } = useApp();
   const [params] = useSearchParams();
   const stations = data!.stations;
