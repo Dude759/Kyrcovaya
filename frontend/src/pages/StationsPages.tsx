@@ -11,7 +11,7 @@ import { useApp } from "../state/context";
 
 export function DriverMapPage() {
   const { data } = useApp();
-  const stations = data!.stations;
+  const stations = data!.stations.filter((s) => !s.archivedAt);
   const [search, setSearch] = useState("");
   const [availableOnly, setAvailableOnly] = useState(true);
   const [highPower, setHighPower] = useState(false);
@@ -170,18 +170,12 @@ export function StationPage() {
             <div>
               <dt>Парковка</dt>
               <dd>
-                {data?.stage
-                  ? "Уточняется у станции"
-                  : "Бесплатно 2 часа"}
+                {data?.stage ? "Уточняется у станции" : "Бесплатно 2 часа"}
               </dd>
             </div>
             <div>
               <dt>Режим работы</dt>
-              <dd>
-                {data?.stage
-                  ? "Уточняется у станции"
-                  : "Круглосуточно"}
-              </dd>
+              <dd>{data?.stage ? "Уточняется у станции" : "Круглосуточно"}</dd>
             </div>
           </dl>
           <p className="updated">{station.district}</p>

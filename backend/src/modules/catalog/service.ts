@@ -34,9 +34,9 @@ export async function listStations(
           AND NOT EXISTS(SELECT 1 FROM connector_reservations r WHERE r.connector_id=c.id
             AND (r.state='confirmed' OR (r.state='held' AND r.expires_at>clock_timestamp()))
             AND r.start_at<=clock_timestamp() AND r.end_at>clock_timestamp()))::int AS available
-        FROM connectors c WHERE c.station_id=s.id AND c.archived_at IS NULL GROUP BY c.type,c.max_power_kw) g
+        FROM connectors c WHERE c.station_id=s.id AND (c.archived_at IS NULL OR $2::text IS NOT NULL) GROUP BY c.type,c.max_power_kw) g
     ) ports ON true
-    WHERE s.archived_at IS NULL AND ($1::uuid IS NULL OR s.organization_id=$1)
+    WHERE (s.archived_at IS NULL OR $2::text IS NOT NULL) AND ($1::uuid IS NULL OR s.organization_id=$1)
       AND ($2::text IS NULL OR s.id=$2)
       AND ($3::text IS NULL OR position(lower($3) in lower(s.name||' '||s.address||' '||s.district))>0)
       AND ($4::text IS NULL OR s.id>$4)
@@ -60,9 +60,11 @@ export async function listStations(
     name: row.name as string,
     address: row.address as string,
     district: row.district as string,
+    archivedAt: row.archived_at?.toISOString() ?? null,
     coordinates: [Number(row.longitude), Number(row.latitude)],
-    status:
-      row.operating_state === "online"
+    status: row.archived_at
+      ? "service"
+      : row.operating_state === "online"
         ? row.connectors.some((c: { available: number }) => c.available > 0)
           ? "available"
           : "busy"

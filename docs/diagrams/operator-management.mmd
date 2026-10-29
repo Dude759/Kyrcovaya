@@ -1,0 +1,7 @@
+erDiagram
+    organizations ||--o{ network_events : owns
+    users ||--o{ network_events : acts
+    stations ||--o{ network_events : audited
+    connectors o|--o{ network_events : audited
+    organizations ||--o{ operator_requests : deduplicates
+    stations ||--o{ connectors : contains

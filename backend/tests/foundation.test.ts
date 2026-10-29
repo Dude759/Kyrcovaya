@@ -102,6 +102,8 @@ test("B01: clean migrations, foundation and reservation tables, repeatable seed 
       "connector_reservations",
       "connectors",
       "driver_profiles",
+      "network_events",
+      "operator_requests",
       "organizations",
       "payment_attempts",
       "payment_compensations",

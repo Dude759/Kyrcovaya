@@ -102,3 +102,7 @@ R00 отдельно проверяет extension/миграцию/типы; R13
 ## Stage 3E — Booking Cancellation & No-show
 
 [Протокол L00–L25](booking-lifecycle-results.md), [тесты](../../backend/tests/lifecycle.test.ts), [UI](../../frontend/tests/booking-lifecycle-ui.test.tsx). 130/74 PASS, прежние 104/68 сохранены. Проверяются граница после locks, start/cancel/no_show, любой исторический session status, повтор/rollback/restart, отдельный booking refund, квитанции/два worker, общий бюджет, подписанный replay и отсутствие восстановления брони. Все fault/race только в `_test` PG17. Публичный smoke 17 групп и отдельные браузерные cancellation/no-show обязательны для закрытия.
+
+## Stage 4A — управление станциями оператора
+
+Миграция 007, аудит network_events и ключи operator_requests; API управления собственной организацией, физические порты, безопасные лимиты/режим/архив, HTTP формы и история. Создание service → проверенные порты → online. Архив не удаляет финансовую историю. Диагностика без показаний: «Нет данных». GridAdapter/max-min/ML/OCPP не включены. [Политика, тесты и приёмка](operator-management-results.md). Публичный выпуск PENDING.

@@ -157,3 +157,7 @@ POST `/api/bookings/:id/cancel`, driver-владелец, строго `{}`. И�
 006 сохраняет 001–005, добавляет booking_closures/booking_refunds/test_booking_refund_receipts и общий финансовый guard. Recovery при boot/примерно раз в 15 секунд, также driver workspace до snapshot; сон Free откладывает выполнение. Availability не объявляет виртуальное освобождение до SQL-перехода. UI polling броней раз в 5 секунд; pending/submitted не равны подтверждению возврата.
 
 [OpenAPI](openapi/bookings.yaml), [протокол L00–L25](../docs/testing/booking-lifecycle-results.md). Локально 130 backend / 74 frontend PASS. Публичный smoke: прежние флаги плюс `--lifecycle` (17 групп). Настоящая неявка отдельно проверяется в браузере с ожиданием полного окна. Финальный статус выпуска — в PR Stage 3E.
+
+## Stage 4A — управление станциями оператора
+
+Миграция 007, аудит network_events и ключи operator_requests; API управления собственной организацией, физические порты, безопасные лимиты/режим/архив, HTTP формы и история. Создание service → проверенные порты → online. Архив не удаляет финансовую историю. Диагностика без показаний: «Нет данных». GridAdapter/max-min/ML/OCPP не включены. [Политика, тесты и приёмка](../docs/testing/operator-management-results.md). Публичный выпуск PENDING.

@@ -191,7 +191,7 @@ test("P00: 003 applies and repeats; tables, unique/FK constraints and CORS heade
   assert.equal(
     (await pool.query("SELECT count(*)::int AS n FROM schema_migrations"))
       .rows[0].n,
-    6,
+    7,
   );
   await assert.rejects(
     pool.query(

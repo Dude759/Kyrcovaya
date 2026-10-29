@@ -169,3 +169,7 @@ settlement содержит finalCostKopecks/unusedKopecks/prepaidKopecks/energy
 [OpenAPI Bookings](../backend/openapi/bookings.yaml): POST bookings/:id/cancel, owner driver, пустое тело, повтор по ID возвращает прежний результат. Чужой ID 404, operator 403, любая существовавшая session/used 409. После границы окна сервер фиксирует expired/no_show, даже если POST ожидал locks. POST bookings без оплаты остаётся 501.
 
 Booking DTO дополнен expired, closureReason(driver/no_show/session/null), closedAt, sessionId/sessionStatus и refund(id,amountKopecks,pending/submitted/succeeded,confirmedAt,test=true). Session-причина использует session refund, а не поле booking refund. Workspace восстанавливает собственные no-show/refund перед snapshot. UI требует подтверждения отмены, различает причину и квитанцию, обновляет историю/каталог через API. Mock сохранён. [Политика и ограничения](testing/booking-lifecycle-results.md).
+
+## Stage 4A — управление станциями оператора
+
+Миграция 007, аудит network_events и ключи operator_requests; API управления собственной организацией, физические порты, безопасные лимиты/режим/архив, HTTP формы и история. Создание service → проверенные порты → online. Архив не удаляет финансовую историю. Диагностика без показаний: «Нет данных». GridAdapter/max-min/ML/OCPP не включены. [Политика, тесты и приёмка](testing/operator-management-results.md). Публичный выпуск PENDING.

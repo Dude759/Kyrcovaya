@@ -1,0 +1,591 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Энерготранспорт — Operator Management",
+    "version": "0.7.0",
+    "description": "Идемпотентность org/key/payload. Финансовые снимки неизменны; архив сохраняет историю. Локальные лимиты не являются управлением энергосистемой."
+  },
+  "servers": [
+    {
+      "url": "https://energotransport-api-dude759.onrender.com/api"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "paths": {
+    "/operator/stations": {
+      "post": {
+        "summary": "Создать учебную станцию в service",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Согласованный результат; событие аудита записано атомарно"
+          },
+          "400": {
+            "description": "Неверный JSON/координаты/мощность/тариф"
+          },
+          "401": {
+            "description": "Требуется Bearer"
+          },
+          "403": {
+            "description": "Только operator"
+          },
+          "404": {
+            "description": "Чужой/отсутствующий объект"
+          },
+          "409": {
+            "description": "Резерв, сессия, история, лимит либо конфликт ключа"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "address": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 300
+                  },
+                  "district": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "coordinates": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      },
+                      {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "maxPowerKw": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000000,
+                    "multipleOf": 0.01
+                  },
+                  "limitKw": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000,
+                    "multipleOf": 0.01
+                  },
+                  "pricePerKwh": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "multipleOf": 0.01
+                  }
+                },
+                "required": [
+                  "name",
+                  "address",
+                  "coordinates",
+                  "maxPowerKw",
+                  "limitKw",
+                  "pricePerKwh"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Станции организации, включая архив",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Согласованный результат; событие аудита записано атомарно"
+          },
+          "400": {
+            "description": "Неверный JSON/координаты/мощность/тариф"
+          },
+          "401": {
+            "description": "Требуется Bearer"
+          },
+          "403": {
+            "description": "Только operator"
+          },
+          "404": {
+            "description": "Чужой/отсутствующий объект"
+          },
+          "409": {
+            "description": "Резерв, сессия, история, лимит либо конфликт ключа"
+          }
+        }
+      }
+    },
+    "/operator/stations/{id}": {
+      "patch": {
+        "summary": "Изменить станцию организации",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Согласованный результат; событие аудита записано атомарно"
+          },
+          "400": {
+            "description": "Неверный JSON/координаты/мощность/тариф"
+          },
+          "401": {
+            "description": "Требуется Bearer"
+          },
+          "403": {
+            "description": "Только operator"
+          },
+          "404": {
+            "description": "Чужой/отсутствующий объект"
+          },
+          "409": {
+            "description": "Резерв, сессия, история, лимит либо конфликт ключа"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "address": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 300
+                  },
+                  "district": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "coordinates": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      },
+                      {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "maxPowerKw": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000000,
+                    "multipleOf": 0.01
+                  },
+                  "limitKw": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000,
+                    "multipleOf": 0.01
+                  },
+                  "pricePerKwh": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10000,
+                    "multipleOf": 0.01
+                  },
+                  "status": {
+                    "enum": [
+                      "online",
+                      "service",
+                      "offline"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/operator/stations/{id}/connectors": {
+      "post": {
+        "summary": "Добавить физический порт",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Согласованный результат; событие аудита записано атомарно"
+          },
+          "400": {
+            "description": "Неверный JSON/координаты/мощность/тариф"
+          },
+          "401": {
+            "description": "Требуется Bearer"
+          },
+          "403": {
+            "description": "Только operator"
+          },
+          "404": {
+            "description": "Чужой/отсутствующий объект"
+          },
+          "409": {
+            "description": "Резерв, сессия, история, лимит либо конфликт ключа"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "type": {
+                    "enum": [
+                      "CCS2",
+                      "CHAdeMO",
+                      "Type 2"
+                    ]
+                  },
+                  "maxPowerKw": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000000,
+                    "multipleOf": 0.01
+                  },
+                  "status": {
+                    "enum": [
+                      "idle",
+                      "service",
+                      "offline"
+                    ]
+                  }
+                },
+                "required": [
+                  "label",
+                  "type",
+                  "maxPowerKw",
+                  "status"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Порты своей станции, включая архив",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Согласованный результат; событие аудита записано атомарно"
+          },
+          "400": {
+            "description": "Неверный JSON/координаты/мощность/тариф"
+          },
+          "401": {
+            "description": "Требуется Bearer"
+          },
+          "403": {
+            "description": "Только operator"
+          },
+          "404": {
+            "description": "Чужой/отсутствующий объект"
+          },
+          "409": {
+            "description": "Резерв, сессия, история, лимит либо конфликт ключа"
+          }
+        }
+      }
+    },
+    "/operator/connectors/{id}": {
+      "patch": {
+        "summary": "Изменить физический порт",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Согласованный результат; событие аудита записано атомарно"
+          },
+          "400": {
+            "description": "Неверный JSON/координаты/мощность/тариф"
+          },
+          "401": {
+            "description": "Требуется Bearer"
+          },
+          "403": {
+            "description": "Только operator"
+          },
+          "404": {
+            "description": "Чужой/отсутствующий объект"
+          },
+          "409": {
+            "description": "Резерв, сессия, история, лимит либо конфликт ключа"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "type": {
+                    "enum": [
+                      "CCS2",
+                      "CHAdeMO",
+                      "Type 2"
+                    ]
+                  },
+                  "maxPowerKw": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000000,
+                    "multipleOf": 0.01
+                  },
+                  "status": {
+                    "enum": [
+                      "idle",
+                      "service",
+                      "offline"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/operator/stations/{id}/archive": {
+      "post": {
+        "summary": "Архивировать без удаления истории",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Согласованный результат; событие аудита записано атомарно"
+          },
+          "400": {
+            "description": "Неверный JSON/координаты/мощность/тариф"
+          },
+          "401": {
+            "description": "Требуется Bearer"
+          },
+          "403": {
+            "description": "Только operator"
+          },
+          "404": {
+            "description": "Чужой/отсутствующий объект"
+          },
+          "409": {
+            "description": "Резерв, сессия, история, лимит либо конфликт ключа"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/operator/connectors/{id}/archive": {
+      "post": {
+        "summary": "Архивировать порт",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Согласованный результат; событие аудита записано атомарно"
+          },
+          "400": {
+            "description": "Неверный JSON/координаты/мощность/тариф"
+          },
+          "401": {
+            "description": "Требуется Bearer"
+          },
+          "403": {
+            "description": "Только operator"
+          },
+          "404": {
+            "description": "Чужой/отсутствующий объект"
+          },
+          "409": {
+            "description": "Резерв, сессия, история, лимит либо конфликт ключа"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/operator/events": {
+      "get": {
+        "summary": "Постраничный аудит организации",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Согласованный результат; событие аудита записано атомарно"
+          },
+          "400": {
+            "description": "Неверный JSON/координаты/мощность/тариф"
+          },
+          "401": {
+            "description": "Требуется Bearer"
+          },
+          "403": {
+            "description": "Только operator"
+          },
+          "404": {
+            "description": "Чужой/отсутствующий объект"
+          },
+          "409": {
+            "description": "Резерв, сессия, история, лимит либо конфликт ключа"
+          }
+        }
+      }
+    }
+  }
+}
