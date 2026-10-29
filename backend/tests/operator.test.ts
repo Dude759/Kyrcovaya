@@ -616,6 +616,22 @@ test("O10: driver pays and books the newly created physical port using server ca
   assert.equal(b.connector_id, p.id);
   assert.equal(b.station_id, s.id);
 });
+test("O11: online station can archive after all its ports are archived", async () => {
+  const s = await created();
+  const p = await port(s);
+  assert.equal(
+    (await op("stations/" + s.id, "PATCH", { status: "online" })).status,
+    200,
+  );
+  assert.equal(
+    (await op("connectors/" + p.id + "/archive", "POST", {})).status,
+    200,
+  );
+  assert.equal(
+    (await op("stations/" + s.id + "/archive", "POST", {})).status,
+    200,
+  );
+});
 async function booking(b: any) {
   return (
     await request("/api/workspace", "GET", undefined, tokens[b.userId])
