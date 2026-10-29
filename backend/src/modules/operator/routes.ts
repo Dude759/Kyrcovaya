@@ -68,7 +68,7 @@ export async function listEvents(
 ) {
   const rows = (
     await db.query(
-    `SELECT id::text,actor_id AS "actorId",station_id AS "stationId",connector_id AS "connectorId",action,before_data AS before,after_data AS after,created_at AS date FROM network_events WHERE organization_id=$1 AND ($2::bigint IS NULL OR id<$2::bigint) ORDER BY network_events.id DESC LIMIT $3`,
+      `SELECT id::text,actor_id AS "actorId",station_id AS "stationId",connector_id AS "connectorId",action,before_data AS before,after_data AS after,created_at AS date FROM network_events WHERE organization_id=$1 AND ($2::bigint IS NULL OR id<$2::bigint) ORDER BY network_events.id DESC LIMIT $3`,
       [org, cursor ?? null, limit + 1],
     )
   ).rows;
@@ -235,6 +235,7 @@ export function operatorRoutes(pool: Database) {
                 "Мощность несовместима с лимитом или портами.",
               );
             if (
+              !archive &&
               v.status === "online" &&
               !ports.some(
                 (p: any) => !p.archived_at && p.operating_state === "idle",
