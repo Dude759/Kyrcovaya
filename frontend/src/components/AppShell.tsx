@@ -169,7 +169,8 @@ export function AppShell({
       <main
         className={`app-content${data?.stage ? " app-content--foundation" : ""}`}
       >
-        {data?.stage === "foundation" && (
+        {data?.operatorManagement && <p className="demo-note">Учебный стенд: управление станциями и портами подключено к серверу. Реальное оборудование и энергосистема не подключены; измерения доступны только от серверного имитатора.</p>}
+        {data?.stage === "foundation" && !data.operatorManagement && (
           <div className="connection-banner" role="status">
             Каталог и аккаунт подключены к серверу. Подтверждённое бронирование,
             зарядка, управление станциями и телеметрия появятся в следующих
