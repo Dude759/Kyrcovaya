@@ -136,7 +136,12 @@ export function StationPage() {
       subtitle="Информация о станции и доступных разъёмах"
     >
       <div className="station-detail-layout">
-        <StationMap stations={data!.stations} selectedId={station.id} />
+        <StationMap
+          stations={data!.stations.filter(
+            (s) => !s.archivedAt || s.id === station.id,
+          )}
+          selectedId={station.id}
+        />
         <section className="station-detail">
           <span className={`status status--${station.status}`}>
             {statusLabels[station.status]}
