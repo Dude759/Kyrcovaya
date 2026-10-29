@@ -343,8 +343,8 @@ export function OperatorManagementPage() {
           >
             <ErrorMessage message={error} />
             {Object.entries(form.draft).map(([field, value]) => (
-              <label key={field} style={{ display: "block", marginBottom: 12 }}>
-                {labels[field]}
+              <label key={field} className="field">
+                <span>{labels[field]}</span>
                 {field === "status" || field === "type" ? (
                   <select
                     aria-label={labels[field]}
