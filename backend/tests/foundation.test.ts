@@ -109,6 +109,7 @@ test("B01: clean migrations, foundation and reservation tables, repeatable seed 
       "payment_compensations",
       "payment_events",
       "payments",
+      "power_measurements",
       "schema_migrations",
       "session_measurements",
       "session_refunds",

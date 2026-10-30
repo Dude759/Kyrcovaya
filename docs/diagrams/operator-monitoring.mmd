@@ -1,0 +1,8 @@
+erDiagram
+ organizations ||--o{ stations : owns
+ stations ||--o{ power_measurements : hourly_derivation
+ stations ||--o{ charging_sessions : hosts
+ charging_sessions ||--o{ session_measurements : simulator_readings
+ charging_sessions ||--o{ charging_commands : simulator_commands
+ charging_sessions ||--o| session_settlements : exact_test_cost
+ stations ||--o{ network_events : separate_operator_audit

@@ -5,6 +5,8 @@ import { ErrorMessage } from "../components/Feedback";
 import { api } from "../services/api";
 import { useApp } from "../state/context";
 import { errorMessage } from "../services/errors";
+import { StationTelemetry } from "./OperatorMonitoringPage";
+import { useSearchParams } from "react-router-dom";
 export type ManagedStation = {
   id: string;
   name: string;
@@ -28,9 +30,10 @@ export type ManagedPort = {
 };
 export function OperatorManagementPage() {
   const { refresh } = useApp();
+  const [params] = useSearchParams();
   const [stations, setStations] = useState<ManagedStation[]>([]),
     [ports, setPorts] = useState<ManagedPort[]>([]),
-    [selected, setSelected] = useState(""),
+    [selected, setSelected] = useState(params.get("station") ?? ""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [revision, setRevision] = useState(0);
@@ -255,9 +258,8 @@ export function OperatorManagementPage() {
       {station && (
         <section className="record-card">
           <h2>Физические порты · {station.name}</h2>
-          <p>
-            Координаты: {station.coordinates.join(", ")}. Связь: нет данных.
-          </p>
+          <p>Координаты: {station.coordinates.join(", ")}. Учебный объект.</p>
+          <StationTelemetry id={station.id} />
           {!station.archivedAt && (
             <button className="button" onClick={() => openPort()}>
               Добавить порт

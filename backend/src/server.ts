@@ -5,6 +5,7 @@ import { recoverPayments } from "./modules/payments/service.js";
 import { SimulatorChargerAdapter } from "./modules/sessions/adapter.js";
 import { runChargingCycle } from "./modules/sessions/service.js";
 import { recoverBookingLifecycle } from "./modules/bookings/service.js";
+import { buildPowerHistory } from "./modules/operator/aggregation.js";
 const config = loadConfig();
 const pool = createPool(config.DATABASE_URL);
 try {
@@ -50,15 +51,32 @@ function charge() {
 }
 charge();
 const chargingTimer = setInterval(charge, 1000).unref();
+let aggregating: Promise<unknown> | undefined;
+function aggregate() {
+  if (stopping || aggregating) return;
+  aggregating = buildPowerHistory(pool)
+    .catch(() =>
+      console.error(
+        "Simulator history aggregation failed; durable raw readings will be retried",
+      ),
+    )
+    .finally(() => {
+      aggregating = undefined;
+    });
+}
+aggregate();
+const historyTimer = setInterval(aggregate, 60000).unref();
 function shutdown() {
   if (stopping) return;
   stopping = true;
   clearInterval(recoveryTimer);
   clearInterval(chargingTimer);
+  clearInterval(historyTimer);
   const timer = setTimeout(() => process.exit(1), 10000).unref();
   server.close(async () => {
     await recovering;
     await charging;
+    await aggregating;
     await pool.end();
     clearTimeout(timer);
     process.exit(0);
