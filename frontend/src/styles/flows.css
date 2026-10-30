@@ -849,3 +849,5 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.monitor-kpis article > span { white-space:normal;overflow:visible;min-height:34px;line-height:1.5; }

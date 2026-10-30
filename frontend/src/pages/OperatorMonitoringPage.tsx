@@ -312,7 +312,7 @@ export function OperatorMonitoringPage({
             ? "Станции и мощность"
             : "Панель оператора"
       }
-      subtitle="Измерения PostgreSQL · серверный имитатор"
+      subtitle="Показания серверного имитатора"
     >
       <p className="demo-note">
         Учебный мониторинг. Физическое оборудование и энергосистема не
@@ -340,7 +340,7 @@ export function OperatorMonitoringPage({
       )}
       {s && (
         <>
-          <section className="operator-kpis">
+          <section className="operator-kpis monitor-kpis">
             <article>
               <span>Измеренная мощность текущих зарядок</span>
               <strong>{watt(stale ? null : s.measuredPowerW)}</strong>
@@ -367,7 +367,7 @@ export function OperatorMonitoringPage({
               <span>Стоимость завершённых тестовых зарядок</span>
               <strong>{moneyPrecise(s.completedTestCostKopecks / 100)}</strong>
               <small>
-                Сохранённые расчёты session_settlements · не кассовый отчёт
+                Сохранённые окончательные расчёты · не кассовый отчёт
               </small>
             </article>
           </section>
