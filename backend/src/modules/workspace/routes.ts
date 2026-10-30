@@ -68,6 +68,8 @@ export function workspaceRoutes(
           items.push(await stationDetail(db, identity, h.station_id));
       return {
         operatorManagement: identity.role === "operator",
+        operatorMonitoring: identity.role === "operator",
+        gridBudgetKw: null,
         stations: items,
         preferences: await getPreferences(db, identity.id),
         organization: organization?.name ?? "",

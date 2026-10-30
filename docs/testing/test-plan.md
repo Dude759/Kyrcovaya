@@ -106,3 +106,8 @@ R00 отдельно проверяет extension/миграцию/типы; R13
 ## Stage 4A — управление станциями оператора
 
 Миграция 007, аудит network_events и ключи operator_requests; API управления собственной организацией, физические порты, безопасные лимиты/режим/архив, HTTP формы и история. Создание service → проверенные порты → online. Архив не удаляет финансовую историю. Диагностика без показаний: «Нет данных». GridAdapter/max-min/ML/OCPP не включены. [Политика, тесты и приёмка](operator-management-results.md). Публичный выпуск PENDING.
+
+
+## Stage 4B — Operator Monitoring
+
+PostgreSQL readings → scoped monitoring API → HTTP operator UI. Derived hourly power_measurements uses strict-adjacent-v1; missing/partial never means zero. Separate measured/allocated power, unknown Grid budget, exact settlement kopecks, simulator source, bounded keyset history and CSV. [Protocol](operator-monitoring-results.md). Public acceptance is pending until release PR evidence.

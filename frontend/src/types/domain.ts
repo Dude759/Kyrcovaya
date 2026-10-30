@@ -117,6 +117,8 @@ export type Forecast = {
   points: { time: string; powerKw: number }[];
 };
 export type Snapshot = {
+  operatorMonitoring?: boolean;
+  gridBudgetKw?: null;
   operatorManagement?: boolean;
   charging?: boolean;
   stage?: "foundation" | "bookings";

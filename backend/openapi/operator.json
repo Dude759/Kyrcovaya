@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Энерготранспорт — Operator Management",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "description": "Идемпотентность org/key/payload. Финансовые снимки неизменны; архив сохраняет историю. Локальные лимиты не являются управлением энергосистемой."
   },
   "servers": [
@@ -583,6 +583,273 @@
           },
           "409": {
             "description": "Резерв, сессия, история, лимит либо конфликт ключа"
+          }
+        }
+      }
+    },
+    "/operator/monitoring": {
+      "get": {
+        "summary": "Organization simulator readings, nullable full load, subset and allocated W, session status counts, measured Wh, settled test kopecks, null grid budget",
+        "description": "Source simulator only. Organization from Bearer identity. History max31days, keyset pagination. Unknown values null, never invented zeros. UTC strict-adjacent-v1 excludes cross-hour and gap interpolation. Units W / Wh / kopecks.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Consistent read snapshot; list items and nextCursor where paginated"
+          },
+          "400": {
+            "description": "Strict query invalid"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Operator role required"
+          },
+          "404": {
+            "description": "Station outside organization"
+          }
+        }
+      }
+    },
+    "/operator/monitoring/stations/{id}": {
+      "get": {
+        "summary": "Organization-owned station state and simulator readings",
+        "description": "Source simulator only. Organization from Bearer identity. History max31days, keyset pagination. Unknown values null, never invented zeros. UTC strict-adjacent-v1 excludes cross-hour and gap interpolation. Units W / Wh / kopecks.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consistent read snapshot; list items and nextCursor where paginated"
+          },
+          "400": {
+            "description": "Strict query invalid"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Operator role required"
+          },
+          "404": {
+            "description": "Station outside organization"
+          }
+        }
+      }
+    },
+    "/operator/monitoring/history": {
+      "get": {
+        "summary": "UTC hourly simulator aggregates: complete/partial/missing, nullable average W, measured subset, observed/session coverage ms and unattributed Wh",
+        "description": "Source simulator only. Organization from Bearer identity. History max31days, keyset pagination. Unknown values null, never invented zeros. UTC strict-adjacent-v1 excludes cross-hour and gap interpolation. Units W / Wh / kopecks.",
+        "parameters": [
+          {
+            "name": "stationId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "quality",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "complete",
+                "partial",
+                "missing"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consistent read snapshot; list items and nextCursor where paginated"
+          },
+          "400": {
+            "description": "Strict query invalid"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Operator role required"
+          },
+          "404": {
+            "description": "Station outside organization"
+          }
+        }
+      }
+    },
+    "/operator/sessions": {
+      "get": {
+        "summary": "Scoped session list without driver personal data, source and last reading, exact settled cost",
+        "description": "Source simulator only. Organization from Bearer identity. History max31days, keyset pagination. Unknown values null, never invented zeros. UTC strict-adjacent-v1 excludes cross-hour and gap interpolation. Units W / Wh / kopecks.",
+        "parameters": [
+          {
+            "name": "stationId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "starting",
+                "active",
+                "stopping",
+                "completed",
+                "failed"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consistent read snapshot; list items and nextCursor where paginated"
+          },
+          "400": {
+            "description": "Strict query invalid"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Operator role required"
+          },
+          "404": {
+            "description": "Station outside organization"
+          }
+        }
+      }
+    },
+    "/operator/monitoring/events": {
+      "get": {
+        "summary": "Technical command states and telemetry gaps; separate from operator audit",
+        "description": "Source simulator only. Organization from Bearer identity. History max31days, keyset pagination. Unknown values null, never invented zeros. UTC strict-adjacent-v1 excludes cross-hour and gap interpolation. Units W / Wh / kopecks.",
+        "parameters": [
+          {
+            "name": "stationId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consistent read snapshot; list items and nextCursor where paginated"
+          },
+          "400": {
+            "description": "Strict query invalid"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Operator role required"
+          },
+          "404": {
+            "description": "Station outside organization"
           }
         }
       }

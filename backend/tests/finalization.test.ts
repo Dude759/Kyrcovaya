@@ -172,7 +172,7 @@ after(async () => {
 
 test("F00: 004 migration repeats and database refuses business success without booking", async () => {
   await migrate(pool);
-  assert.equal(await count("schema_migrations"), 7);
+  assert.equal(await count("schema_migrations"), 8);
   const p = await create();
   await assert.rejects(
     pool.query("UPDATE payments SET status='succeeded' WHERE id=$1", [p.id]),

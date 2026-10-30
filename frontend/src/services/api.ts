@@ -17,6 +17,13 @@ import type { Station } from "../data";
 import { stations as mockStations } from "../data";
 import { mockRequest } from "./mockApi";
 import { ApiError } from "./errors";
+import type {
+  MonitoringSnapshot,
+  MonitoringPage,
+  MonitoringSession,
+  PowerHistory,
+  TechnicalEvent,
+} from "../types/monitoring";
 
 const SESSION_KEY = "energotransport:session:v1";
 export const apiMode =
@@ -96,6 +103,22 @@ export async function request<T>(
   }
 }
 export const api = {
+  operatorMonitoring: (stationId?: string) =>
+    request<MonitoringSnapshot>(
+      stationId
+        ? `/operator/monitoring/stations/${encodeURIComponent(stationId)}`
+        : "/operator/monitoring",
+    ),
+  operatorHistory: (query = "") =>
+    request<MonitoringPage<PowerHistory>>(
+      "/operator/monitoring/history?" + query,
+    ),
+  operatorSessions: (query = "") =>
+    request<MonitoringPage<MonitoringSession>>("/operator/sessions?" + query),
+  operatorTechnicalEvents: (query = "") =>
+    request<MonitoringPage<TechnicalEvent>>(
+      "/operator/monitoring/events?" + query,
+    ),
   operatorStations: () =>
     request<{
       items: import("../pages/OperatorManagementPage").ManagedStation[];

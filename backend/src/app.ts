@@ -12,6 +12,7 @@ import { workspaceRoutes } from "./modules/workspace/routes.js";
 import { availabilityRoutes } from "./modules/reservations/availability.js";
 import { sessionRoutes } from "./modules/sessions/routes.js";
 import { operatorRoutes } from "./modules/operator/routes.js";
+import { monitoringRoutes } from "./modules/operator/monitoring-routes.js";
 import { bookingRoutes } from "./modules/bookings/routes.js";
 import {
   paymentRoutes,
@@ -66,7 +67,7 @@ export function createApp(
   );
   app.use(express.json({ limit: "16kb" }));
   app.get(["/health", "/api/health"], (_req, res) => {
-    res.json({ status: "ok", version: "0.7.0" });
+    res.json({ status: "ok", version: "0.8.0" });
   });
   app.get(["/ready", "/api/ready"], async (_req, res) => {
     try {
@@ -95,7 +96,7 @@ export function createApp(
   app.use("/api/payments", paymentRoutes(pool, paymentOptions));
   app.use("/api/sessions", sessionRoutes(pool));
   app.use("/api/bookings", bookingRoutes(pool));
-  app.use("/api/operator", operatorRoutes(pool));
+  app.use("/api/operator", monitoringRoutes(pool), operatorRoutes(pool));
   app.use("/api/operator", operatorOnly, unavailable);
   for (const path of [
     "/api/bookings",

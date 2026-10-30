@@ -1,5 +1,6 @@
 import { serverSessionLabels } from "../utils/session-status";
 import { OperatorManagementPage } from "./OperatorManagementPage";
+import { OperatorMonitoringPage } from "./OperatorMonitoringPage";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
@@ -22,6 +23,13 @@ import { ForecastPanel } from "../components/ForecastPanel";
 import type { Session } from "../types/domain";
 
 export function OperatorDashboardPage() {
+  return apiMode === "http" ? (
+    <OperatorMonitoringPage />
+  ) : (
+    <MockOperatorDashboardPage />
+  );
+}
+function MockOperatorDashboardPage() {
   const { data } = useApp();
   const { stations, sessions, networkLimit, events } = data!;
   const online = stations.filter(
@@ -476,6 +484,13 @@ function MockOperatorStationsPage() {
   );
 }
 export function OperatorPowerPage() {
+  return apiMode === "http" ? (
+    <OperatorMonitoringPage view="power" />
+  ) : (
+    <MockOperatorPowerPage />
+  );
+}
+function MockOperatorPowerPage() {
   const { data, mutate } = useApp();
   const [draft, setDraft] = useState<number | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -615,6 +630,13 @@ export function OperatorPowerPage() {
   );
 }
 export function OperatorSessionsPage() {
+  return apiMode === "http" ? (
+    <OperatorMonitoringPage view="sessions" />
+  ) : (
+    <MockOperatorSessionsPage />
+  );
+}
+function MockOperatorSessionsPage() {
   const { data, mutate } = useApp();
   const now = useNow();
   const metrics = (s: Session) => sessionMetrics(s, s.batteryCapacity, now);

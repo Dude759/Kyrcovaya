@@ -310,7 +310,7 @@ async function closed(b: any) {
 }
 test("L00: 006 repeats; snapshot, uncontrolled reservation release and early no-show are guarded", async () => {
   await migrate(pool);
-  assert.equal(await count("schema_migrations"), 7);
+  assert.equal(await count("schema_migrations"), 8);
   const b = await paid({ offset: 60000 });
   await assert.rejects(
     pool.query(
