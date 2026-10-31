@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { GridPlanningPanel } from "../components/GridPlanningPanel";
 import { Link, useSearchParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { ErrorMessage } from "../components/Feedback";
@@ -314,6 +315,7 @@ export function OperatorMonitoringPage({
       }
       subtitle="Показания серверного имитатора"
     >
+      {view === "power" && <GridPlanningPanel />}
       <p className="demo-note">
         Учебный мониторинг. Физическое оборудование и энергосистема не
         подключены. Сетевой бюджет и резерв неизвестны.

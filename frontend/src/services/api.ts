@@ -103,6 +103,23 @@ export async function request<T>(
   }
 }
 export const api = {
+  gridPlan: () =>
+    request<import("../components/GridPlanningPanel").GridPlan>(
+      "/operator/power/plan",
+    ),
+  gridHistory: (cursor?: string) =>
+    request<{ items: any[]; nextCursor: string | null }>(
+      "/operator/grid/history?limit=20" +
+        (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""),
+    ),
+  gridScenario: (input: { scenario: string; workload: string }, key: string) =>
+    request<import("../components/GridPlanningPanel").GridPlan>(
+      "/operator/grid/scenario",
+      "POST",
+      input,
+      false,
+      { "Idempotency-Key": key },
+    ),
   operatorMonitoring: (stationId?: string) =>
     request<MonitoringSnapshot>(
       stationId

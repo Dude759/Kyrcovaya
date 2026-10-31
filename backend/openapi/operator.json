@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Энерготранспорт — Operator Management",
-    "version": "0.8.0",
+    "version": "0.9.0",
     "description": "Идемпотентность org/key/payload. Финансовые снимки неизменны; архив сохраняет историю. Локальные лимиты не являются управлением энергосистемой."
   },
   "servers": [
@@ -850,6 +850,159 @@
           },
           "404": {
             "description": "Station outside organization"
+          }
+        }
+      }
+    },
+    "/operator/grid": {
+      "get": {
+        "summary": "Current simulator state; unknown budget null; freshness seconds and status",
+        "responses": {
+          "200": {
+            "description": "Simulator data / shadow calculation, never applied to devices"
+          },
+          "400": {
+            "description": "Invalid strict input"
+          },
+          "401": {
+            "description": "Login required"
+          },
+          "403": {
+            "description": "Organization operator only"
+          },
+          "409": {
+            "description": "Idempotency conflict"
+          }
+        }
+      }
+    },
+    "/operator/grid/history": {
+      "get": {
+        "summary": "Immutable sample history, limit1-100 and bigint cursor; organization scope",
+        "responses": {
+          "200": {
+            "description": "Simulator data / shadow calculation, never applied to devices"
+          },
+          "400": {
+            "description": "Invalid strict input"
+          },
+          "401": {
+            "description": "Login required"
+          },
+          "403": {
+            "description": "Organization operator only"
+          },
+          "409": {
+            "description": "Idempotency conflict"
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/operator/grid/scenario": {
+      "post": {
+        "summary": "Strict {scenario,workload}; simulator only, no direct readings; durable idempotency and actor audit",
+        "responses": {
+          "200": {
+            "description": "Simulator data / shadow calculation, never applied to devices"
+          },
+          "400": {
+            "description": "Invalid strict input"
+          },
+          "401": {
+            "description": "Login required"
+          },
+          "403": {
+            "description": "Organization operator only"
+          },
+          "409": {
+            "description": "Idempotency conflict"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "scenario"
+                ],
+                "properties": {
+                  "scenario": {
+                    "enum": [
+                      "normal",
+                      "deficit",
+                      "deep_deficit",
+                      "recovery",
+                      "offline",
+                      "stale",
+                      "missing"
+                    ]
+                  },
+                  "workload": {
+                    "enum": [
+                      "live",
+                      "training"
+                    ],
+                    "default": "live"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/operator/power/plan": {
+      "get": {
+        "summary": "Shadow plan separate from current Grid; usable=false when stale; requested/planned/acknowledged/measured W, training distinct from live",
+        "responses": {
+          "200": {
+            "description": "Simulator data / shadow calculation, never applied to devices"
+          },
+          "400": {
+            "description": "Invalid strict input"
+          },
+          "401": {
+            "description": "Login required"
+          },
+          "403": {
+            "description": "Organization operator only"
+          },
+          "409": {
+            "description": "Idempotency conflict"
           }
         }
       }

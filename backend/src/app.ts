@@ -1,3 +1,4 @@
+import { gridRoutes } from "./modules/operator/grid.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -30,6 +31,7 @@ export function createApp(
         | "PUBLIC_DEMO"
         | "PAYMENT_PUBLIC_ORIGIN"
         | "PAYMENT_WEBHOOK_SECRET"
+        | "GRID_FRESHNESS_SECONDS"
       >
     > & { PAYMENT_HOLD_TTL_SECONDS?: number },
 ) {
@@ -67,7 +69,7 @@ export function createApp(
   );
   app.use(express.json({ limit: "16kb" }));
   app.get(["/health", "/api/health"], (_req, res) => {
-    res.json({ status: "ok", version: "0.8.0" });
+    res.json({ status: "ok", version: "0.9.0" });
   });
   app.get(["/ready", "/api/ready"], async (_req, res) => {
     try {
@@ -96,7 +98,12 @@ export function createApp(
   app.use("/api/payments", paymentRoutes(pool, paymentOptions));
   app.use("/api/sessions", sessionRoutes(pool));
   app.use("/api/bookings", bookingRoutes(pool));
-  app.use("/api/operator", monitoringRoutes(pool), operatorRoutes(pool));
+  app.use(
+    "/api/operator",
+    gridRoutes(pool, config.GRID_FRESHNESS_SECONDS ?? 60),
+    monitoringRoutes(pool),
+    operatorRoutes(pool),
+  );
   app.use("/api/operator", operatorOnly, unavailable);
   for (const path of [
     "/api/bookings",

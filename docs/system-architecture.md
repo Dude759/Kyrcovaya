@@ -129,3 +129,8 @@ Booking lifecycle использует прежний lock graph 3D и PostgreSQ
 ## Stage 4B — Operator Monitoring
 
 PostgreSQL readings → scoped monitoring API → HTTP operator UI. Derived hourly power_measurements uses strict-adjacent-v1; missing/partial never means zero. Separate measured/allocated power, unknown Grid budget, exact settlement kopecks, simulator source, bounded keyset history and CSV. [Protocol](testing/operator-monitoring-results.md). Public acceptance is pending until release PR evidence.
+
+
+## Stage 5A — shadow Grid planning
+
+GridAdapter simulator, integer-W max-min, durable immutable planning snapshots, scoped idempotent scenario commands and separate audit. No device power changes. [Contract, tests and acceptance](testing/grid-planning-results.md). GRID_FRESHNESS_SECONDS: 5–3600 (default60). Stage 5B requires acknowledged setPower and interval-safe metering.
