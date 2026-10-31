@@ -32,6 +32,9 @@ export async function lockBookingGraph(
   ).rows[0];
   if (!candidate) throw new HttpError(404, "Бронь не найдена.");
   await db.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+    `dispatch:${candidate.organization_id}`,
+  ]);
+  await db.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
     `charging-driver:${userId}`,
   ]);
   const p = (

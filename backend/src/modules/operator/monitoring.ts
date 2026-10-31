@@ -26,6 +26,9 @@ export function monitoredSession(s: any, now: Date) {
     startedAt: iso(s.started_at),
     endedAt: iso(s.ended_at),
     allocatedPowerW: Number(s.allocated_power_w),
+    acknowledgedPowerW: s.power_effective_at ? num(s.acknowledged_w) : null,
+    powerEffectiveAt: iso(s.power_effective_at),
+    powerReconciliation: s.reconciliation ?? null,
     currentPowerW:
       telemetry === "fresh" && ["active", "stopping"].includes(s.status)
         ? num(s.power_w)
@@ -41,9 +44,10 @@ export function monitoredSession(s: any, now: Date) {
     finalCostKopecks: num(s.final_cost_kopecks),
   };
 }
-export const monitoredSelect = `SELECT s.*, st.name AS station_name,c.label,d.online,m.sampled_at,m.energy_wh AS measured_energy_wh,m.power_w,m.gap,x.final_cost_kopecks
+export const monitoredSelect = `SELECT s.*, st.name AS station_name,c.label,d.online,m.sampled_at,m.energy_wh AS measured_energy_wh,m.power_w,m.gap,x.final_cost_kopecks,ps.acknowledged_w,ps.effective_at AS power_effective_at,ps.reconciliation
  FROM charging_sessions s JOIN stations st ON st.id=s.station_id JOIN connectors c ON c.id=s.connector_id
  LEFT JOIN simulator_devices d ON d.connector_id=s.connector_id
+ LEFT JOIN session_power_state ps ON ps.session_id=s.id
  LEFT JOIN LATERAL(SELECT * FROM session_measurements WHERE session_id=s.id ORDER BY sequence_no DESC LIMIT 1)m ON true
  LEFT JOIN session_settlements x ON x.session_id=s.id`;
 export function measuredSubset(

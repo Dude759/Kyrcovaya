@@ -40,7 +40,12 @@ const charger = new SimulatorChargerAdapter(pool);
 let charging: Promise<void> | undefined;
 function charge() {
   if (stopping || charging) return;
-  charging = runChargingCycle(pool, charger)
+  charging = runChargingCycle(
+    pool,
+    charger,
+    undefined,
+    config.GRID_FRESHNESS_SECONDS,
+  )
     .catch(() =>
       console.error(
         "Charging recovery failed; durable commands will be retried",

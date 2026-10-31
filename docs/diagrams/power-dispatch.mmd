@@ -1,0 +1,12 @@
+erDiagram
+  organizations ||--o| power_dispatch_settings : controls
+  organizations ||--o{ power_dispatch_actions : audits
+  grid_samples ||--o{ power_dispatch_plans : sources
+  power_dispatch_plans ||--o{ power_commands : calculates
+  charging_sessions ||--|| session_power_state : acknowledges
+  session_power_state ||--o{ power_commands : requests
+  power_commands ||--o| power_command_receipts : confirms
+  session_power_state ||--o{ session_power_history : records
+  power_commands ||--o| session_power_history : changes
+  charging_commands ||--o| session_power_history : starts_or_stops
+  power_command_receipts ||--o| session_measurements : closes_interval

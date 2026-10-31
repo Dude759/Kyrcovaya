@@ -152,6 +152,9 @@ export function operatorRoutes(pool: Database) {
     );
     try {
       return await chargingWork(pool, async (db) => {
+        await db.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+          "dispatch:" + org,
+        ]);
         if (key) {
           await db.query(
             "SELECT pg_advisory_xact_lock(hashtextextended($1,0))",

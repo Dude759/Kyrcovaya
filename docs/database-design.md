@@ -180,3 +180,16 @@ PostgreSQL readings → scoped monitoring API → HTTP operator UI. Derived hour
 ## Stage 5A — shadow Grid planning
 
 GridAdapter simulator, integer-W max-min, durable immutable planning snapshots, scoped idempotent scenario commands and separate audit. No device power changes. [Contract, tests and acceptance](testing/grid-planning-results.md). GRID_FRESHNESS_SECONDS: 5–3600 (default60). Stage 5B requires acknowledged setPower and interval-safe metering.
+
+## Применение мощности: миграция 010
+
+Добавлены power_dispatch_settings/actions, immutable power_dispatch_plans (Grid sample,
+fingerprint всех материальных входов, live assignments), power_commands (stable provider
+ID, revision, pending/submitted/acknowledged/rejected), immutable power_command_receipts,
+session_power_state и immutable session_power_history/effective_at. Разрешены 0 Вт
+как подтверждённая пауза; allocated_power_w остаётся неизменяемым стартовым снимком.
+Deferred constraints связывают state, последний transition, intent, receipt, session/org
+и target плана. Raw measurement_guard сверяет power с historical confirmation на
+sampled_at и сохраняет монотонность энергии/seq. Старые shadow constraints сохранены.
+Upgrade восстанавливает подтверждения из durable start/stop receipts, legacy managed=false.
+ERD: [power-dispatch.mmd](diagrams/power-dispatch.mmd).

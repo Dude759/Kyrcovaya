@@ -850,4 +850,132 @@
   }
 }
 
-.monitor-kpis article > span { white-space:normal;overflow:visible;min-height:34px;line-height:1.5; }
+.monitor-kpis article > span {
+  white-space: normal;
+  overflow: visible;
+  min-height: 34px;
+  line-height: 1.5;
+}
+
+.dispatch-panel {
+  min-width: 0;
+  margin-bottom: 24px;
+}
+.dispatch-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.dispatch-heading h2 {
+  margin: 8px 0;
+}
+.dispatch-heading p {
+  max-width: 720px;
+  color: var(--muted, #61716b);
+}
+.dispatch-status {
+  background: #e4f1e9;
+  color: #145a39;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.dispatch-status--alert {
+  background: #fff0d5;
+  color: #744d14;
+}
+.dispatch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0 12px;
+}
+.dispatch-notice {
+  padding: 12px;
+  border-left: 3px solid #b97e26;
+  background: #fff7e9;
+}
+.dispatch-panel td small {
+  display: block;
+  margin-top: 5px;
+  color: #64716c;
+  overflow-wrap: anywhere;
+}
+.dispatch-comparison {
+  margin: 24px 0 0;
+}
+.dispatch-comparison figcaption {
+  font-weight: 600;
+}
+.dispatch-comparison figcaption small {
+  display: block;
+  font-weight: 400;
+  color: #64716c;
+  margin: 8px 0 16px;
+}
+.dispatch-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  margin: 12px 0;
+}
+.dispatch-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  background: #b3bdc7;
+}
+.dispatch-legend span:nth-child(2)::before {
+  background: #dfb65d;
+}
+.dispatch-legend span:nth-child(3)::before {
+  background: #187253;
+}
+.dispatch-chart-row {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 110px;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 11px;
+}
+.dispatch-bar {
+  height: 5px;
+  border-radius: 1px;
+  margin: 3px 0;
+  background: #b3bdc7;
+}
+.dispatch-bar--planned {
+  background: #dfb65d;
+}
+.dispatch-bar--confirmed {
+  background: #187253;
+}
+@media (max-width: 600px) {
+  .dispatch-heading {
+    flex-direction: column;
+  }
+  .dispatch-status {
+    max-width: 100%;
+    white-space: normal;
+  }
+  .dispatch-controls {
+    flex-direction: column;
+  }
+  .dispatch-controls button {
+    width: 100%;
+    white-space: normal;
+  }
+  .dispatch-chart-row {
+    grid-template-columns: minmax(0, 1fr) 90px;
+    gap: 6px;
+  }
+  .dispatch-chart-row time {
+    grid-column: 1/-1;
+  }
+}

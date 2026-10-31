@@ -56,7 +56,9 @@ const names: Record<string, string> = {
 };
 const power = (w: number | null) =>
   w === null ? "Неизвестно" : `${(w / 1000).toFixed(3)} кВт`;
-export function GridPlanningPanel() {
+export function GridPlanningPanel({
+  applicationSeparate = false,
+}: { applicationSeparate?: boolean } = {}) {
   const [data, setData] = useState<GridPlan | null>(null),
     [history, setHistory] = useState<any[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
@@ -133,9 +135,20 @@ export function GridPlanningPanel() {
     >
       <h2>Учебный имитатор энергосистемы</h2>
       <p>
-        <strong>Расчёт, не применяется к зарядкам.</strong> Реальная
-        энергокомпания не подключена. Сценарий меняет только расчётный план, а
-        не устройства, брони или оплату.
+        {applicationSeparate ? (
+          <>
+            <strong>Расчёт и применение показаны отдельно.</strong> При
+            включённом управлении live-сценарий запускает сверку команд
+            устройств. Training не применяется. Реальная энергокомпания не
+            подключена.
+          </>
+        ) : (
+          <>
+            <strong>Расчёт, не применяется к зарядкам.</strong> Реальная
+            энергокомпания не подключена. Сценарий меняет только расчётный план,
+            а не устройства, брони или оплату.
+          </>
+        )}
       </p>
       <ErrorMessage message={error} />
       <div className="monitor-filters">
@@ -250,8 +263,9 @@ export function GridPlanningPanel() {
           </dl>
           {!usable && (
             <p role="status">
-              Достоверного текущего плана нет. Зарядки продолжают работать по
-              прежним локальным правилам.
+              {applicationSeparate
+                ? "Достоверного shadow-плана нет. Состояние команд и подтверждений показано в разделе применения выше."
+                : "Достоверного текущего плана нет. Зарядки продолжают работать по прежним локальным правилам."}
             </p>
           )}
           {data.plan && (

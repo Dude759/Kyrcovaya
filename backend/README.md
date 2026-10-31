@@ -171,3 +171,12 @@ PostgreSQL readings → scoped monitoring API → HTTP operator UI. Derived hour
 ## Stage 5A — shadow Grid planning
 
 GridAdapter simulator, integer-W max-min, durable immutable planning snapshots, scoped idempotent scenario commands and separate audit. No device power changes. [Contract, tests and acceptance](../docs/testing/grid-planning-results.md). GRID_FRESHNESS_SECONDS: 5–3600 (default60). Stage 5B requires acknowledged setPower and interval-safe metering.
+
+### Power Dispatch (5B)
+
+По умолчанию OFF. Оператор выбирает нормальный live Grid, затем POST
+`/api/operator/power/dispatch` с `{ "enabled": true }` и Idempotency-Key. Переключение
+только без unfinished sessions/commands; legacy active не enroll. Worker раз в секунду
+восстанавливает receipts, рассчитывает live max-min, доставляет durable setPower.
+Отключение после завершения зарядок. Никаких реальных денежных/аппаратных операций.
+Миграция 010 запускается обычным migrate/deploy; 001–009 неизменны.

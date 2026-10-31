@@ -19,6 +19,7 @@ import {
   SimulatorChargerAdapter,
   type ChargerAdapter,
 } from "../src/modules/sessions/adapter.js";
+import { recordChargingPower } from "../src/modules/sessions/power.js";
 import {
   confirmTestSessionRefund,
   recoverSessionRefund,
@@ -245,7 +246,7 @@ after(async () => {
 
 test("C00: migration 005 repeats; start/stop reject client telemetry and missing idempotency keys", async () => {
   await migrate(pool);
-  assert.equal(await count("schema_migrations"), 9);
+  assert.equal(await count("schema_migrations"), 10);
   const b = await paid();
   assert.equal(
     (await request("/api/sessions", "POST", { bookingId: b.id })).status,
@@ -537,6 +538,7 @@ test("C15: lost stop response keeps durable receipt; replay completes without a 
   await tick(s);
   await stopSession(pool, driver, s.id, randomUUID());
   const broken: ChargerAdapter = {
+    setPower: (id, ttl) => adapter.setPower(id, ttl),
     sample: (id) => adapter.sample(id),
     execute: async (id) => {
       const r = await adapter.execute(id);
@@ -761,6 +763,13 @@ async function historicalActive(b: any) {
       )
     ).rows[0];
     const sampled = new Date(b.start.getTime() + 10000);
+    const historicalCommand = (
+      await db.query(
+        "INSERT INTO charging_commands(session_id,kind,status,created_at,ready_at,confirmed_at) VALUES($1,'start','acknowledged',$2,$2,$2) RETURNING id",
+        [s.id, b.start],
+      )
+    ).rows[0];
+    await recordChargingPower(db, s.id, historicalCommand.id, 22000, b.start);
     await db.query(
       "INSERT INTO simulator_session_state(session_id,state,energy_wh,sequence_no,last_tick_at,epoch) VALUES($1,'charging',37,0,$2,$3)",
       [s.id, sampled, adapter.epoch],
@@ -771,12 +780,7 @@ async function historicalActive(b: any) {
         [s.id, sampled],
       )
     ).rows[0];
-    const c = (
-      await db.query(
-        "INSERT INTO charging_commands(session_id,kind,status,created_at,ready_at,confirmed_at) VALUES($1,'start','acknowledged',$2,$2,$2) RETURNING id",
-        [s.id, b.start],
-      )
-    ).rows[0];
+    const c = historicalCommand;
     await db.query(
       "INSERT INTO simulator_command_receipts(command_id,session_id,accepted,confirmed_at,measurement_id) VALUES($1,$2,true,$3,$4)",
       [c.id, s.id, b.start, m.id],
