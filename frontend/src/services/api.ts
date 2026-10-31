@@ -103,6 +103,18 @@ export async function request<T>(
   }
 }
 export const api = {
+  powerDispatch: () =>
+    request<import("../components/PowerDispatchPanel").DispatchView>(
+      "/operator/power/dispatch",
+    ),
+  setPowerDispatch: (enabled: boolean, key: string) =>
+    request<import("../components/PowerDispatchPanel").DispatchView>(
+      "/operator/power/dispatch",
+      "POST",
+      { enabled },
+      false,
+      { "Idempotency-Key": key },
+    ),
   gridPlan: () =>
     request<import("../components/GridPlanningPanel").GridPlan>(
       "/operator/power/plan",

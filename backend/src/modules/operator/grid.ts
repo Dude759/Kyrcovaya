@@ -6,6 +6,7 @@ import { operatorOnly } from "../auth/middleware.js";
 import { HttpError } from "../../middleware/errors.js";
 import { hash } from "../payments/provider.js";
 import { idempotencyKey } from "../payments/validation.js";
+import { dispatchLock, dispatchEnabled } from "../sessions/power.js";
 import {
   gridBudget,
   maxMin,
@@ -42,6 +43,9 @@ export async function gridView(db: PoolClient, org: string, ttl: number) {
     receivedAt: s?.received_at?.toISOString() ?? null,
     source: "simulator" as const,
   };
+  // A snapshot from another configured version cannot authorize live dispatch.
+  const matchingVersion =
+    !!s && !!state && String(s.state_version) === String(state.version);
   return {
     scenario: state?.scenario ?? "missing",
     workload: state?.workload ?? "live",
@@ -50,8 +54,15 @@ export async function gridView(db: PoolClient, org: string, ttl: number) {
     asOf: now.toISOString(),
     reading,
     operatorLimitW: limit,
-    ...gridBudget(reading, limit, now, ttl),
-    freshnessSeconds: ttl,
+    ...(matchingVersion
+      ? gridBudget(
+          reading,
+          limit,
+          now,
+          Math.min(ttl, s?.freshness_seconds ?? ttl),
+        )
+      : { budgetW: null, validity: "missing" }),
+    freshnessSeconds: Math.min(ttl, s?.freshness_seconds ?? ttl),
     mode: "shadow",
   };
 }
@@ -300,6 +311,7 @@ export function gridRoutes(pool: Database, ttl = 60) {
       org = req.identity!.organizationId!;
     res.json(
       await transaction(pool, async (db) => {
+        await dispatchLock(db, org);
         await db.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
           "grid:" + org,
         ]);
@@ -324,6 +336,11 @@ export function gridRoutes(pool: Database, ttl = 60) {
               [org],
             )
           ).rows[0] ?? null;
+        if (input.workload === "training" && (await dispatchEnabled(db, org)))
+          throw new HttpError(
+            409,
+            "Training недоступен при включённом применении мощности.",
+          );
         await db.query(
           `INSERT INTO grid_states(organization_id,scenario,workload,version) VALUES($1,$2,$3,1) ON CONFLICT(organization_id) DO UPDATE SET scenario=EXCLUDED.scenario,workload=EXCLUDED.workload,version=grid_states.version+1,updated_at=clock_timestamp()`,
           [org, input.scenario, input.workload],

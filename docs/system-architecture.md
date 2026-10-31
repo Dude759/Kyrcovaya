@@ -134,3 +134,21 @@ PostgreSQL readings → scoped monitoring API → HTTP operator UI. Derived hour
 ## Stage 5A — shadow Grid planning
 
 GridAdapter simulator, integer-W max-min, durable immutable planning snapshots, scoped idempotent scenario commands and separate audit. No device power changes. [Contract, tests and acceptance](testing/grid-planning-results.md). GRID_FRESHNESS_SECONDS: 5–3600 (default60). Stage 5B requires acknowledged setPower and interval-safe metering.
+
+## Stage 5B: подтверждаемое применение мощности
+
+Применение отделено от sealed shadow 5A. OFF по умолчанию; переключение только
+без незавершённых сессий/команд. Управляемый старт требует свежего положительного
+Grid и headroom относительно acknowledged + starting. Training не управляет устройствами.
+Все жизненные операции берут advisory dispatch:org до driver/payment/station/port.
+Планирование не блокирует сразу несколько платёжных графов; исполнение проверяет
+входы и один граф сессии повторно. Снижения первыми, повышения только в доказуемом
+свежем бюджете. Прежние консервативные локальные резервы сохранены.
+
+Adapter setPower атомарно интегрирует старый интервал, сохраняет receipt/effective_at,
+историю, current state и boundary measurement. Replay receipt не создаёт нового
+физического эффекта. Sequence/revision и fingerprint защищают от запоздалой команды.
+Неизвестный Grid требует подтверждаемой паузы; offline устройства не освобождает порт.
+История измерений, тариф и settlement неизменяемы. Epoch/gap исключает backfill после
+сна API. Нулевой setpoint не продлевает оплаченный интервал. Render Free не даёт
+гарантии времени реакции при остановленном процессе. См. протокол power-dispatch-results.

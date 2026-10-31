@@ -406,7 +406,7 @@ test("G06: threshold boundary, stale/offline/missing/future/invalid never produc
 });
 test("G07: 009 migration repeats; initially Grid is genuinely missing", async () => {
   await migrate(pool);
-  assert.equal(await count("schema_migrations"), 9);
+  assert.equal(await count("schema_migrations"), 10);
   const r = await gridOp("grid");
   assert.equal(r.data.budgetW, null);
   assert.equal(r.data.scenario, "missing");

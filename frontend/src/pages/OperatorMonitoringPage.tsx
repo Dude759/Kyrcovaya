@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { GridPlanningPanel } from "../components/GridPlanningPanel";
+import { PowerDispatchPanel } from "../components/PowerDispatchPanel";
 import { Link, useSearchParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { ErrorMessage } from "../components/Feedback";
@@ -315,7 +316,12 @@ export function OperatorMonitoringPage({
       }
       subtitle="Показания серверного имитатора"
     >
-      {view === "power" && <GridPlanningPanel />}
+      {view === "power" && (
+        <>
+          <PowerDispatchPanel />
+          <GridPlanningPanel applicationSeparate />
+        </>
+      )}
       <p className="demo-note">
         Учебный мониторинг. Физическое оборудование и энергосистема не
         подключены. Сетевой бюджет и резерв неизвестны.
@@ -363,7 +369,7 @@ export function OperatorMonitoringPage({
             <article>
               <span>Выделено имитатору</span>
               <strong>{watt(s.allocatedPowerW)}</strong>
-              <small>Локальное выделение, не измеренная нагрузка</small>
+              <small>Стартовый исторический снимок, не текущая мощность</small>
             </article>
             <article>
               <span>Стоимость завершённых тестовых зарядок</span>

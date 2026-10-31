@@ -311,7 +311,7 @@ const op = (path: string) =>
 
 test("M00: 008 repeats and history uses the new table only", async () => {
   await migrate(pool);
-  assert.equal(await count("schema_migrations"), 9);
+  assert.equal(await count("schema_migrations"), 10);
   assert.equal(await count("power_measurements"), 0);
 });
 test("M01: no samples is unknown, not zero measured power or grid budget", async () => {

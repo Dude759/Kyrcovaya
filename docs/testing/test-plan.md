@@ -116,3 +116,15 @@ PostgreSQL readings → scoped monitoring API → HTTP operator UI. Derived hour
 ## Stage 5A — shadow Grid planning
 
 GridAdapter simulator, integer-W max-min, durable immutable planning snapshots, scoped idempotent scenario commands and separate audit. No device power changes. [Contract, tests and acceptance](grid-planning-results.md). GRID_FRESHNESS_SECONDS: 5–3600 (default60). Stage 5B requires acknowledged setPower and interval-safe metering.
+
+## Stage 5B
+
+D00–D18: миграция/upgrade, команды и durable receipts, segmented integer energy,
+delay/reject/duplicate/out-of-order/lost response, pending overshoot, unsafe admission,
+перепланирование лимитов/порта/состава/доступности, 2 станции/общий бюджет, training,
+SQL rollback, OS restart, отсутствие gap energy, zero-pause deadline, финансовая
+неизменяемость и один settlement/refund, изоляция организаций. Только отдельная PG17.
+Frontend: OFF/safe switch/stable key, pending vs acknowledged vs measured, unknown Grid
+и pause, график сравнения/rejection. Публично: сначала OFF regression, затем две
+учебные сессии, снижение/пауза/восстановление/stop/refund, возврат OFF. См.
+[power-dispatch-results.md](power-dispatch-results.md).

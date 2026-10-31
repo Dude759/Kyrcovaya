@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Энерготранспорт — Server Charging Sessions
-  version: 0.5.0
+  version: 0.10.0
   description: |
     Stage 3D. Только серверный имитатор; настоящая станция и банк не подключены.
     Строгие тела запросов: энергия, мощность, SOC, цена и terminal status от клиента отклоняются.
@@ -22,6 +22,8 @@ paths:
         Проверяются confirmed booking/reservation, succeeded payment, доступность и физические лимиты.
         starting не означает подтверждённый старт; результат следует читать через GET /sessions/:id.
         Без доказуемого локального бюджета мощности запуск отклоняется.
+        При включённом Power Dispatch нужны свежий Grid, подтверждённый headroom и отсутствие pending setPower.
+        powerControl разделяет requestedW и acknowledgedW/effectiveAt; allocated snapshot не меняется.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:

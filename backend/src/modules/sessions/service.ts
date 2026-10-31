@@ -16,6 +16,7 @@ import {
   confirmTestSessionRefund,
 } from "./settlement.js";
 import type { ChargerAdapter } from "./adapter.js";
+import { safeAdmission, runPowerDispatch } from "./power.js";
 
 export async function sessionDto(db: PoolClient, s: any) {
   const measurement = (
@@ -45,6 +46,11 @@ export async function sessionDto(db: PoolClient, s: any) {
   const cost = Math.floor(
     (Number(s.energy_wh) * Number(s.tariff_kopecks) + 999) / 1000,
   );
+  const powerState = (
+    await db.query("SELECT * FROM session_power_state WHERE session_id=$1", [
+      s.id,
+    ])
+  ).rows[0];
   return {
     id: s.id,
     userId: s.user_id,
@@ -62,6 +68,17 @@ export async function sessionDto(db: PoolClient, s: any) {
     batteryCapacity: Number(s.battery_capacity_kwh),
     energy: Number(s.energy_wh) / 1000,
     energyWh: Number(s.energy_wh),
+    powerControl: powerState
+      ? {
+          managed: powerState.managed,
+          requestedW: Number(powerState.requested_w),
+          acknowledgedW: powerState.effective_at
+            ? Number(powerState.acknowledged_w)
+            : null,
+          effectiveAt: powerState.effective_at?.toISOString() ?? null,
+          reconciliation: powerState.reconciliation,
+        }
+      : null,
     power:
       fresh && device?.online && s.status === "active"
         ? Number(measurement.power_w) / 1000
@@ -252,6 +269,11 @@ export async function startSession(
         409,
         "Невозможно подтвердить свободную мощность в локальном лимите станции.",
       );
+    if (!(await safeAdmission(db, b.organization_id, power)))
+      throw new HttpError(
+        409,
+        "Свежий Grid и подтверждённые назначения не позволяют безопасный запуск. Дождитесь сверки мощности.",
+      );
     const profile = (
       await db.query(
         "SELECT battery_capacity_kwh FROM driver_profiles WHERE user_id=$1 FOR SHARE",
@@ -429,7 +451,9 @@ export async function runChargingCycle(
   pool: Database,
   adapter: ChargerAdapter,
   refundAdapter = confirmTestSessionRefund,
+  gridTtl = 60,
 ) {
+  await runPowerDispatch(pool, adapter, gridTtl);
   const commands = (
     await pool.query(
       "SELECT id,session_id FROM charging_commands WHERE status IN ('pending','submitted') ORDER BY created_at,kind LIMIT 100",

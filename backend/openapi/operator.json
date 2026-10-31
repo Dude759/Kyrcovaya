@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Энерготранспорт — Operator Management",
-    "version": "0.9.0",
+    "version": "0.10.0",
     "description": "Идемпотентность org/key/payload. Финансовые снимки неизменны; архив сохраняет историю. Локальные лимиты не являются управлением энергосистемой."
   },
   "servers": [
@@ -859,7 +859,7 @@
         "summary": "Current simulator state; unknown budget null; freshness seconds and status",
         "responses": {
           "200": {
-            "description": "Simulator data / shadow calculation, never applied to devices"
+            "description": "Simulator Grid / immutable shadow calculation. When separate dispatch mode is enabled, live input changes also trigger acknowledged device reconciliation. Training rejected while enabled."
           },
           "400": {
             "description": "Invalid strict input"
@@ -881,7 +881,7 @@
         "summary": "Immutable sample history, limit1-100 and bigint cursor; organization scope",
         "responses": {
           "200": {
-            "description": "Simulator data / shadow calculation, never applied to devices"
+            "description": "Simulator Grid / immutable shadow calculation. When separate dispatch mode is enabled, live input changes also trigger acknowledged device reconciliation. Training rejected while enabled."
           },
           "400": {
             "description": "Invalid strict input"
@@ -922,7 +922,7 @@
         "summary": "Strict {scenario,workload}; simulator only, no direct readings; durable idempotency and actor audit",
         "responses": {
           "200": {
-            "description": "Simulator data / shadow calculation, never applied to devices"
+            "description": "Simulator Grid / immutable shadow calculation. When separate dispatch mode is enabled, live input changes also trigger acknowledged device reconciliation. Training rejected while enabled."
           },
           "400": {
             "description": "Invalid strict input"
@@ -1003,6 +1003,69 @@
           },
           "409": {
             "description": "Idempotency conflict"
+          }
+        }
+      }
+    },
+    "/operator/power/dispatch": {
+      "get": {
+        "operationId": "getPowerDispatch",
+        "summary": "Current requested / planned / acknowledged / measured simulator power, commands and reconciliation",
+        "responses": {
+          "200": {
+            "description": "Own organization only. enabled defaults false; budgetW null means unknown. Acknowledged is durable last receipt, never a pending target. Fresh measuredW may be null. History is calculation-time evidence."
+          },
+          "403": {
+            "description": "Operator only"
+          }
+        }
+      },
+      "post": {
+        "operationId": "setPowerDispatchMode",
+        "summary": "Controlled simulator mode switch, only without unfinished sessions or commands",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "enabled"
+                ],
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current mode and snapshot; audited org/key replay. New sessions enrolled, existing sessions never migrated."
+          },
+          "400": {
+            "description": "Invalid strict input"
+          },
+          "403": {
+            "description": "Own organization operator only"
+          },
+          "409": {
+            "description": "Unfinished sessions/commands, unknown/nonpositive/training Grid, or key reused for another mode"
           }
         }
       }

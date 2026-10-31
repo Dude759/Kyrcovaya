@@ -183,3 +183,15 @@ PostgreSQL readings → scoped monitoring API → HTTP operator UI. Derived hour
 ## Stage 5A — shadow Grid planning
 
 GridAdapter simulator, integer-W max-min, durable immutable planning snapshots, scoped idempotent scenario commands and separate audit. No device power changes. [Contract, tests and acceptance](testing/grid-planning-results.md). GRID_FRESHNESS_SECONDS: 5–3600 (default60). Stage 5B requires acknowledged setPower and interval-safe metering.
+
+## Power Dispatch 5B
+
+GET /operator/power/dispatch: enabled=false по умолчанию, status off/pending/acknowledged/
+rejected/degraded; grid budget nullable, acknowledgedW — последнее durable подтверждение,
+withinBudget nullable при OFF. sessions различает requestedW, plannedW, command.targetW/
+status, acknowledgedW/effectiveAt, measuredW nullable, reconciliation. История содержит
+бюджет/расчёт/подтверждение на момент расчёта, а не вымышленную телеметрию.
+POST тот же путь, strict {enabled:boolean}, Idempotency-Key; 409 при незавершённых
+сессиях/командах, unsafe Grid либо training. Перед стартом managed API проверяет
+свежий Grid и headroom; GET /sessions дополняется powerControl. Обновление страницы
+читает сервер; целевые значения никогда не становятся acknowledged до квитанции.
