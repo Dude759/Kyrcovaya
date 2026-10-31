@@ -597,6 +597,7 @@ test("D11: parallel delivery/start/stop keeps one settlement/refund and rejects 
   await Promise.all([
     adapter.setPower(c.id),
     adapter.setPower(c.id),
+    startSession(pool, driver, s.bookingId, randomUUID()),
     stopSession(pool, driver, s.id, randomUUID()),
   ]);
   await cycle();
