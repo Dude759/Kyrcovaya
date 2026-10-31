@@ -4,6 +4,7 @@ import { z } from "zod";
 if (existsSync(".env")) process.loadEnvFile(".env");
 
 const schema = z.object({
+  GRID_FRESHNESS_SECONDS: z.coerce.number().int().min(5).max(3600).default(60),
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),

@@ -1,0 +1,8 @@
+erDiagram
+ organizations ||--o| grid_states : configures_simulator
+ organizations ||--o{ grid_samples : owns
+ grid_samples ||--o{ power_plan_runs : immutable_input
+ power_plan_runs ||--o{ power_plan_assignments : sealed_in_same_transaction
+ organizations ||--o{ grid_requests : idempotency
+ users ||--o{ grid_actions : authorized_actor
+ organizations ||--o{ grid_actions : own_audit

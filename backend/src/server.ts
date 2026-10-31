@@ -1,3 +1,4 @@
+import { runGridCycle } from "./modules/operator/grid.js";
 import { loadConfig } from "./config/env.js";
 import { createPool } from "./db/pool.js";
 import { createApp } from "./app.js";
@@ -66,17 +67,30 @@ function aggregate() {
 }
 aggregate();
 const historyTimer = setInterval(aggregate, 60000).unref();
+let gridWork: Promise<unknown> | undefined;
+function grid() {
+  if (stopping || gridWork) return;
+  gridWork = runGridCycle(pool, config.GRID_FRESHNESS_SECONDS)
+    .catch(() => console.error("Grid planning will be retried"))
+    .finally(() => {
+      gridWork = undefined;
+    });
+}
+grid();
+const gridTimer = setInterval(grid, 15000).unref();
 function shutdown() {
   if (stopping) return;
   stopping = true;
   clearInterval(recoveryTimer);
   clearInterval(chargingTimer);
   clearInterval(historyTimer);
+  clearInterval(gridTimer);
   const timer = setTimeout(() => process.exit(1), 10000).unref();
   server.close(async () => {
     await recovering;
     await charging;
     await aggregating;
+    await gridWork;
     await pool.end();
     clearTimeout(timer);
     process.exit(0);
