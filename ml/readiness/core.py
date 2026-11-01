@@ -14,7 +14,8 @@ def instant(value):
 
 
 def stamp(value):
-    return value.isoformat(timespec="seconds").replace("+00:00", "Z")
+    # Never round an availability timestamp backwards across a forecast origin.
+    return value.isoformat(timespec="microseconds" if value.microsecond else "seconds").replace("+00:00", "Z")
 
 
 def canonical(value):
