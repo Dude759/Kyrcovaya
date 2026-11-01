@@ -47,6 +47,10 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(row['quality'],'partial');self.assertIsNone(row['load_kw'])
         snapshot['hours'].append({**snapshot['hours'][0],'station_id':'b','average_kw':7})
         self.assertEqual(export_network(snapshot)[0]['load_kw'],12)
+        snapshot['hours'][0]['built_at']='2026-01-01T01:00:00.500000Z'
+        exported=export_network(snapshot)
+        self.assertEqual(exported[0]['available_at'],'2026-01-01T01:00:00.500000Z')
+        self.assertIsNone(prediction(exported,instant(end),1,'last'))
 
     def test_split_labels_disjoint_and_purged(self):
         ranges=split_ranges(self.start)
