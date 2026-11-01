@@ -1,7 +1,7 @@
-# Stage 6A — data readiness, не обученная ML-модель
+# ML workspace — Stage 6A readiness и Stage 6B RandomForest
 
-Python **3.14.5**, только стандартная библиотека (requirements.txt намеренно без
-сторонних зависимостей). Окружение: `python -m venv .venv`, затем запускать
+Python **3.14.5**. Readiness использует стандартную библиотеку; модель требует
+requirements-model.txt (pinned scikit-learn/NumPy/SciPy/joblib). Окружение: `python -m venv .venv`, затем запускать
 `.venv/Scripts/python.exe` на Windows или `.venv/bin/python` на Linux.
 Все команды ниже выполняются из `ml/`; CI использует ту же patch-версию Python.
 
@@ -55,4 +55,31 @@ quality, физические пределы, число зарядок, max-min
 Физический ноль при известных показаниях разрешён; отсутствие показаний нулём не становится.
 
 Отчёт: `docs/testing/ml-data-readiness-results.md`, спецификация 6B —
-`docs/stage6b-model-plan.md`. Действующий frontend/API и Power Dispatch не меняются.
+`docs/stage6b-model-plan.md`. Интеграция Stage6B описана ниже; Power Dispatch от неё не зависит.
+
+## Stage 6B — обученная модель, offline replay
+
+```sh
+python -m pip install --only-binary=:all: -r requirements-model.txt
+python -m model.train verify --retrain
+python -m unittest discover -s tests -v
+```
+
+Доверенная модель и provenance: `models/rf-v1/`; полный отчёт со всеми 24 горизонтами:
+[ml-model-results](../docs/testing/ml-model-results.md). 28 признаков определены
+в `model/features.py`, train-only median imputer и RF 64/10/20, seed20261101.
+Dataset/splits Stage6A неизменны. Selection по validation сохранён до оценки test;
+CI повторяет frozen опыт, не подбирает параметры заново по test.
+
+Точный запуск: `python -m model.train train --out artifacts/new-experiment` создаёт
+новый локальный опыт. Не заменяет trusted release: новый generatedAt изменит bundle
+checksum. Для новой публикации нужны проверка результатов и review allowlist.
+Joblib загружается только из фиксированного repo path после проверки доверенных
+version/checksum/dataset/features/versions; пользовательские файлы не принимаются.
+
+Render остаётся Node.js: вариант B отдаёт исторический synthetic replay Python-модели
+для origin 2026-05-02T00:00:00Z, не новый прогноз сегодня. 24 points сохраняются
+отдельно от телеметрии. API проверяет bundle checksum и сравнивает DB points с Python.
+Actual сеть: NEEDS_MORE_DATA, forecast=null. Нет динамического Python/ONNX inference,
+forecast jobs или воздействия на Grid. Synthetic test RF MAE53.527863/RMSE75.715506
+кВт; weekly116.180936/159.357780 на тех же11634 парах — не качество реальной сети.

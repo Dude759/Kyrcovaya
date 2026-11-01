@@ -1,4 +1,5 @@
 import { gridRoutes } from "./modules/operator/grid.js";
+import { forecastRoutes } from "./modules/operator/forecast.js";
 import { dispatchRoutes } from "./modules/sessions/power.js";
 import express from "express";
 import cors from "cors";
@@ -70,7 +71,7 @@ export function createApp(
   );
   app.use(express.json({ limit: "16kb" }));
   app.get(["/health", "/api/health"], (_req, res) => {
-    res.json({ status: "ok", version: "0.10.0" });
+    res.json({ status: "ok", version: "0.11.0" });
   });
   app.get(["/ready", "/api/ready"], async (_req, res) => {
     try {
@@ -101,6 +102,7 @@ export function createApp(
   app.use("/api/bookings", bookingRoutes(pool));
   app.use(
     "/api/operator",
+    forecastRoutes(pool),
     gridRoutes(pool, config.GRID_FRESHNESS_SECONDS ?? 60),
     dispatchRoutes(pool, config.GRID_FRESHNESS_SECONDS ?? 60),
     monitoringRoutes(pool),

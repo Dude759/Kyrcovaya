@@ -1,6 +1,6 @@
 # Архитектура «Энерготранспорта»
 
-Версия 1.4, 26 октября 2026 года. Целевая архитектура. Foundation реализован и опубликован: Pages → Render HTTPS API → Neon PostgreSQL 17. [Публичная приёмка](testing/public-results.md). [Backend v0.2 / Reservation Core](testing/reservation-results.md) добавляет внутренние удержания и GET availability. Test Payments v0.3 реализует pending-заказ, attempts и подписанный inbox. Подтверждённая бронь после оплаты, зарядка, ML и управление мощностью остаются проектными компонентами.
+Версия 1.5, Stage 6B. Реализованы Foundation, paid bookings, server simulator charging/settlement, операторский CRUD/мониторинг и Grid Dispatch. ML — обученный synthetic RF с offline historical replay; actual NEEDS_MORE_DATA. Публичное состояние 6B подтверждается release PR и [протоколом](testing/ml-model-results.md). Целевые компоненты ниже следует отличать от реализованных этапов.
 
 ## Компоненты и размещение
 
@@ -11,7 +11,9 @@ flowchart TD
     UI -->|HTTPS /api| API[Node.js + TypeScript + Express]
     UI -->|Подложка и маркеры| Maps[Яндекс Maps JavaScript API]
     API --> DB[(PostgreSQL)]
-    API -->|Внутренний запрос| ML[Python / scikit-learn]
+    ML[Python / scikit-learn offline и CI] --> Artifact[Проверенный synthetic JSON artifact]
+    Artifact -->|Idempotent seed| DB
+    Artifact -->|Checksum и replay| API
     Worker[Фоновый обработчик основного backend] --> DB
     Worker --> Grid[Адаптер энергосистемы / имитатор]
     Worker --> Charger[Адаптер зарядных устройств / имитатор]
@@ -21,7 +23,7 @@ flowchart TD
 
 Frontend размещён на GitHub Pages, API — на Render Free, PostgreSQL — в Neon Free. CORS допускает только origin https://dude759.github.io; соединение с Neon проверяет TLS-сертификат. Локальная Docker-БД остаётся независимой. Набор доступных функций Foundation явно указан в UI; ошибка публичного API не включает mock.
 
-Основной backend — модульный монолит. ML — один небольшой отдельный процесс: он позволяет использовать Python без переноса основной бизнес-логики. Redis, брокер сообщений, Kubernetes и дополнительные микросервисы для обязательной версии не нужны. Фоновые задания и очередь внешних команд сохраняются в PostgreSQL.
+Основной backend — модульный монолит. ML — офлайн pipeline Python и CI. В Node runtime Render Python не запускается; GET возвращает сохранённый исторический эксперимент. Redis, брокер сообщений, Kubernetes и дополнительные микросервисы для обязательной версии не нужны. Фоновые задания и очередь внешних команд сохраняются в PostgreSQL.
 
 ## Модули backend
 
@@ -35,7 +37,7 @@ Frontend размещён на GitHub Pages, API — на Render Free, PostgreSQ
 | charging | Запуск/завершение, телеметрия, энергия, итоговый расчёт |
 | operator | Сводка, изменение инфраструктуры, настройки и аудит действий |
 | power | Ограничения сети, распределение мощности, журнал и подтверждение внешних команд |
-| forecast | Подготовка доступных на момент расчёта признаков, запрос ML и сохранение прогнозов |
+| forecast | As-of Python pipeline, immutable org forecast history и проверенный HTTP replay |
 | jobs | Истечение удержаний, имитатор, повторы внешних команд и расчёт мощности |
 
 Обработчик HTTP валидирует запрос и вызывает сервис. Сервис управляет транзакцией и правами. Доступ к БД находится в репозитории модуля; HTTP-обработчик не содержит расчёт мощности или SQL резервирования. SQL-миграции хранятся в Git; ORM не обязателен. Для первой реализации достаточно `pg` и параметризованных запросов.
@@ -152,3 +154,14 @@ Adapter setPower атомарно интегрирует старый интер
 История измерений, тариф и settlement неизменяемы. Epoch/gap исключает backfill после
 сна API. Нулевой setpoint не продлевает оплаченный интервал. Render Free не даёт
 гарантии времени реакции при остановленном процессе. См. протокол power-dispatch-results.
+
+## Stage 6B — фактическая интеграция
+
+RF direct multi-horizon + train-only median imputer; preset validation selection,
+frozen test, trusted hashes в ml/models/rf-v1 и model/trust.py. Express читает
+forecast_runs/load_predictions только своей org. GET actual: NEEDS_MORE_DATA/null;
+отдельный GET demo: synthetic historical origin +24 points/metrics. Workspace.forecast
+не маскирует synthetic под actual. POST501, новых jobs/live inference нет. B проверен
+Python→Node; ONNX A изучен, не валидирован. Render build/start/runtime не изменены.
+Нет будущих Grid/сессий или вызова setPower. Идеи выше о погоде/лимитах/станции
+не входят в текущие28 признаков без as-of доказательства. [Метрики/ограничения](testing/ml-model-results.md).

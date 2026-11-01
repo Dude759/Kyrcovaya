@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Энерготранспорт — Operator Management",
-    "version": "0.10.0",
+    "version": "0.11.0",
     "description": "Идемпотентность org/key/payload. Финансовые снимки неизменны; архив сохраняет историю. Локальные лимиты не являются управлением энергосистемой."
   },
   "servers": [
@@ -1069,6 +1069,12 @@
           }
         }
       }
+    },
+    "/operator/forecast": {
+      "$ref": "forecast.json#/paths/~1operator~1forecast"
+    },
+    "/operator/forecast/demo": {
+      "$ref": "forecast.json#/paths/~1operator~1forecast~1demo"
     }
   }
 }

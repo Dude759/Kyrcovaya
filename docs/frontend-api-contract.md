@@ -52,7 +52,7 @@ GET `/workspace` → `Snapshot`:
 
 `NetworkEvent`: `{id,stationId: string|null,date,message,severity: info|warning|danger}`.
 
-`Forecast`: `{source: demo|model, generatedAt, points: {time,powerKw}[]}`. Значения упорядочены по времени, неотрицательны, покрывают ближайшие сутки. При отсутствии модели возвращается `null` или явно обозначенный источник demo. Фронтенд не генерирует фиктивные метрики точности модели.
+`Forecast`: source demo|model|synthetic|actual; generatedAt, points{time,powerKw,lastKw?,weeklyKw?}[]. Stage6B synthetic имеет origin/modelVersion/mode=historical_replay/quality/metrics и24 часа origin+h. Это исторические сутки, не ближайшие к сегодняшней дате. Legacy demo/model сохраняется для mock. Actual без проверенных данных=null.
 
 ## Бронирование и зарядка
 
@@ -114,7 +114,7 @@ POST `/demo/payments/:id` с `{outcome: succeeded|failed}` использует�
 
 `Session.telemetry?: {source: demo|device,receivedAt,connection: online|offline,energy}` — последнее полученное показание. Если данные старше минуты, некорректно датированы или отсутствуют, интерфейс показывает устаревшее состояние; при `offline` — потерю связи. Тогда он сохраняет последнюю энергию, скрывает текущую мощность и время до завершения. Реальные `device`-показания никогда не экстраполируются. Демо-симуляция растёт только при свежих данных; итоговую энергию при остановке фиксирует локальный симулятор.
 
-POST `/operator/forecast` → `Forecast|null` обновляет прогноз. Во время запроса видна загрузка; ошибка оставляет предыдущий расчёт с предупреждением и повтором. Расчёт старше часа отмечается как устаревший. Источник `demo/model` указан явно. Точность, интервал обновления и достаточность исходных данных модели — ответственность будущего backend.
+Только mock: POST `/operator/forecast` → `Forecast|null` обновляет демонстрационный прогноз. Во время запроса видна загрузка; ошибка оставляет предыдущий расчёт с предупреждением и повтором. Расчёт старше часа отмечается как устаревший. Источник `demo/model` указан явно. Точность, интервал обновления и достаточность исходных данных модели — ответственность будущего backend.
 
 Только mock: POST `/demo/sessions/:id/telemetry` с `{connection: online|offline}`; сценарий `ready/error/empty/stale` для `/operator/forecast`. В HTTP-режиме имитационные параметры и элементы управления не используются.
 
@@ -137,7 +137,7 @@ POST `/operator/forecast` → `Forecast|null` обновляет прогноз.
 | POST `/operator/stations/:id/archive` | Архивирование без удаления истории; отказ при активных сессиях и будущих резервах | Оператор своей организации |
 | POST `/operator/connectors/:id/archive` | Архивирование порта с теми же проверками | Оператор своей организации |
 | GET `/grid/status` | Последний бюджет организации, время получения, status и source simulator/external | Оператор своей организации |
-| GET `/operator/forecast` | Последний сохранённый прогноз; POST того же пути выполняет обновление | Оператор своей организации |
+| GET `/operator/forecast` | Actual readiness NEEDS_MORE_DATA/null; POST501 offline | Оператор своей организации |
 | POST `/integrations/payments/:provider/events` | Подписанные события тестового/банковского адаптера; deduplication по ID события | Адаптер; подпись, не пользовательский Bearer |
 
 Успешное создание — 201, изменение — 200 или согласованный 204. Истории возвращают `items` и cursor следующей страницы; `/workspace` первоначально остаётся совместимым агрегатом. Новые структуры описываются в OpenAPI на этапе реализации, вместе с проверкой запросов и ответов. Параметры поиска не заменяют серверную проверку резервирования.
@@ -195,3 +195,18 @@ POST тот же путь, strict {enabled:boolean}, Idempotency-Key; 409 при
 сессиях/командах, unsafe Grid либо training. Перед стартом managed API проверяет
 свежий Grid и headroom; GET /sessions дополняется powerControl. Обновление страницы
 читает сервер; целевые значения никогда не становятся acknowledged до квитанции.
+
+## Stage 6B — HTTP Forecast
+
+[OpenAPI](../backend/openapi/forecast.json). GET /operator/forecast без query:
+{status:insufficient_data,readiness:NEEDS_MORE_DATA,source:actual,forecast:null,reason,
+quality:{completeStationHours,stationHours},asOf,mode:offline_only}.
+GET /operator/forecast/demo: {status:ready,historical:true,staleForCurrentNetwork:true,
+forecast:ForecastBundle,warning}. Bundle: organizationId, source=synthetic,
+mode=historical_replay, modelVersion, datasetHash, origin, generatedAt, quality,
+metrics.validation/test, 24 points{h,time,powerKw,lastKw,weeklyKw}.
+UTC target end origin+h; baseline null не дорисовывается. Без Bearer401, водитель403,
+чужая org404 на demo, неизвестный query400, неверный trusted artifact503. POST501,
+нового job нет. Actual workspace.forecast=null. URL forecast=demo восстанавливает
+явно открытый пример после reload; relogin читает тот же серверный run. Error не
+заменяет ответ mock. Нет ML управления Grid/доверительной полосы/процента точности.

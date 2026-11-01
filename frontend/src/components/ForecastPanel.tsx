@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAction } from "../hooks/useAction";
 import { useNow } from "../hooks/useNow";
 import { api, apiMode } from "../services/api";
@@ -7,7 +8,131 @@ import { dateTime } from "../utils/format";
 import { ErrorMessage } from "./Feedback";
 import { LoadForecast } from "./LoadForecast";
 
-export function ForecastPanel({
+export function ForecastPanel(props: {
+  forecast: Forecast | null;
+  networkLimit: number;
+}) {
+  return apiMode === "http" ? (
+    <ServerForecastPanel />
+  ) : (
+    <MockForecastPanel {...props} />
+  );
+}
+function ServerForecastPanel() {
+  const [params, setParams] = useSearchParams();
+  const [status, setStatus] = useState<Awaited<
+      ReturnType<typeof api.forecastStatus>
+    > | null>(null),
+    [demo, setDemo] = useState<Forecast | null>(null),
+    [busy, setBusy] = useState(true),
+    [error, setError] = useState("");
+  async function load(includeDemo: boolean) {
+    setBusy(true);
+    setError("");
+    try {
+      setStatus(await api.forecastStatus());
+      if (includeDemo) setDemo((await api.forecastDemo()).forecast);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Прогноз недоступен");
+    } finally {
+      setBusy(false);
+    }
+  }
+  const opened = params.get("forecast") === "demo";
+  useEffect(() => {
+    let cancelled = false;
+    async function initialRead() {
+      try {
+        const nextStatus = await api.forecastStatus();
+        if (!cancelled) setStatus(nextStatus);
+        const nextDemo = opened ? (await api.forecastDemo()).forecast : null;
+        if (!cancelled) {
+          if (nextDemo) setDemo(nextDemo);
+          setError("");
+        }
+      } catch (e) {
+        if (!cancelled)
+          setError(e instanceof Error ? e.message : "Прогноз недоступен");
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    }
+    void initialRead();
+    return () => {
+      cancelled = true;
+    };
+  }, [opened]);
+  return (
+    <section
+      className="record-card forecast-container"
+      aria-label="ML-прогноз"
+      aria-busy={busy}
+    >
+      <h2>Прогноз нагрузки рабочей сети</h2>
+      <p role="status">
+        {busy
+          ? "Загрузка прогноза…"
+          : status
+            ? "NEEDS_MORE_DATA · Недостаточно полных данных"
+            : "Прогноз недоступен"}
+      </p>
+      {status && (
+        <>
+          <p>{status.reason}</p>
+          <p>
+            Полных станционных часов: {status.quality.completeStationHours} из{" "}
+            {status.quality.stationHours}. Достоверного прогноза рабочей сети
+            нет.
+          </p>
+        </>
+      )}
+      <ErrorMessage message={error} />
+      <div className="checkout-actions">
+        <button
+          className="button button--outline"
+          disabled={busy}
+          onClick={() => void load(opened)}
+        >
+          Проверить доступность прогноза
+        </button>
+        <button
+          className="button"
+          disabled={busy}
+          onClick={() => {
+            if (opened) void load(true);
+            else {
+              setBusy(true);
+              setError("");
+              setParams(
+                (p) => {
+                  p.set("forecast", "demo");
+                  return p;
+                },
+                { replace: true },
+              );
+            }
+          }}
+        >
+          Открыть учебный ML-эксперимент
+        </button>
+      </div>
+      <p>
+        Новый расчёт на сервере не запускается: доступен сохранённый
+        исторический replay Python-модели. Прогноз не управляет Grid Dispatch.
+      </p>
+      {demo && (
+        <>
+          <p className="forecast-warning" role="status">
+            Устаревший для текущей сети: это исторический synthetic эксперимент.
+            Качество на реальной сети не подтверждено.
+          </p>
+          <LoadForecast forecast={demo} networkLimit={0} />
+        </>
+      )}
+    </section>
+  );
+}
+function MockForecastPanel({
   forecast,
   networkLimit,
 }: {

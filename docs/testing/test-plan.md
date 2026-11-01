@@ -128,3 +128,14 @@ Frontend: OFF/safe switch/stable key, pending vs acknowledged vs measured, unkno
 и pause, график сравнения/rejection. Публично: сначала OFF regression, затем две
 учебные сессии, снижение/пауза/восстановление/stop/refund, возврат OFF. См.
 [power-dispatch-results.md](power-dispatch-results.md).
+
+## Stage 6B
+
+[Протокол и все горизонты](ml-model-results.md): 20 Python, 200 backend PG17,
+93 frontend, pinned Windows/Linux frozen retrain/reload parity, неизменный hash/splits/
+common support, train-only imputation/as-of/future/missing/schema/trust. FCT00–05:
+миграция/seed/OS restart/relogin, checksum/version/dataset, actual NEEDS_MORE_DATA,
+role/org isolation, 24 historical dates, отсутствие побочных эффектов. HTTP UI:
+explicit synthetic/reload/error, baseline и метрики только synthetic.
+Публично: regression17 + ML smoke + browser actual/demo/reload/relogin/driver denial/
+320px; same SHA Render/Pages. До этих фактов выпуск PENDING.
