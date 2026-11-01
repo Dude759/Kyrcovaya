@@ -63,7 +63,7 @@ def prepare(snapshot_path, out):
     # Same source/time/quality columns in both CSV exports. No identifiers of drivers or payments.
     for name, rows in (("actual", actual), ("synthetic", synthetic)):
         with (out / f"{name}-network.csv").open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["end", "source", "quality", "load_kw", "available_at", "known_grid_budget_kw"])
+            writer = csv.DictWriter(f, fieldnames=["end", "source", "quality", "load_kw", "available_at", "known_grid_budget_kw"], lineterminator="\n")
             writer.writeheader()
             writer.writerows({k:r[k] for k in writer.fieldnames} for r in rows)
         plot(rows, out / f"{name}-load.svg", f'{name.upper()} — {"фактическая история серверного имитатора" if name=="actual" else "синтетический учебный набор, не реальная сеть"}')
