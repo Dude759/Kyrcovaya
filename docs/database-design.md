@@ -1,6 +1,6 @@
 # Проектирование базы данных
 
-Версия 1.1, 26 октября 2026 года. Целевая логическая схема PostgreSQL. Первые семь таблиц реализованы в [001_foundation.sql](../backend/migrations/001_foundation.sql) и проверены на PostgreSQL 17; остальная модель и SQL резервирования ниже ещё не реализованы. Дополнительная schema_migrations — технический журнал, не восьмая предметная сущность.
+Stage 6B: реализованы миграции001–011. Целевая ER/таблица ниже содержит проектные поля; точные действующие DDL находятся в backend/migrations. Отдельный Stage6B ER и ограничения приведены в конце. Предыдущие миграции не переписываются.
 
 ## Принципы
 
@@ -65,7 +65,7 @@ erDiagram
 | session_measurements | id, session_id, sequence_no, measured_at, received_at, cumulative_energy_kwh, power_kw, soc_percent, connection, source | UNIQUE (session_id,sequence_no); source simulator/device; SOC nullable; фактические и запрошенные мощности не смешиваются |
 | power_measurements | id, station_id, interval_start, interval_end, avg_power_kw, energy_kwh, active_sessions, station_limit_kw, network_budget_kw, source, quality | Агрегаты часовых интервалов для обучения; UNIQUE (station_id,interval_start,source); quality complete/partial/missing |
 | grid_samples | id, organization_id, available_power_kw, base_load_kw, status, measured_at, received_at, source | Снимок внешнего бюджета; source simulator/external; статус normal/constrained/offline |
-| forecast_runs | id, organization_id, generated_at, origin_at, model_version, dataset_version, dataset_source, metrics, training_from, training_to, test_from, test_to | Успешные расчёты; метрики JSONB с единицами/горизонтом/базовым методом; dataset_source measured/simulator/synthetic указывает происхождение набора. DTO source=model требует фактического запуска обученной модели; сведения о наборе добавляются отдельно |
+| forecast_runs | id, organization_id, generated_at, origin_at, model_version, dataset_version, dataset_source, metrics, training_from, training_to, test_from, test_to | Успешные расчёты; метрики JSONB с единицами/горизонтом/базовым методом; dataset_source measured/simulator/synthetic указывает происхождение набора. Целевая схема; в011 DTO source=synthetic/mode=historical_replay, происхождение не скрывается под model |
 | load_predictions | id, run_id, station_id, time, horizon_hours, power_kw | 24 последовательных точки на выбранный объект; power ≥ 0; уникальность сети и станции задаётся раздельными индексами |
 | power_assignments | id, session_id, grid_sample_id, forecast_run_id, requested_kw, allocated_kw, applied_kw, created_at, acknowledged_at, status, reason | allocated — решение, applied — подтверждение устройства; applied nullable до ответа; статус pending/applied/failed |
 | network_events | id, organization_id, station_id, actor_user_id, date, severity, action, message, metadata | Аудит изменений и интеграционных ошибок; актор nullable для фонового обработчика |
@@ -193,3 +193,41 @@ Deferred constraints связывают state, последний transition, in
 sampled_at и сохраняет монотонность энергии/seq. Старые shadow constraints сохранены.
 Upgrade восстанавливает подтверждения из durable start/stop receipts, legacy managed=false.
 ERD: [power-dispatch.mmd](diagrams/power-dispatch.mmd).
+
+## Stage 6B — реализованный ER (011)
+
+```mermaid
+erDiagram
+ ORGANIZATIONS ||--o{ FORECAST_RUNS : owns
+ FORECAST_RUNS ||--|{ LOAD_PREDICTIONS : has_24
+ FORECAST_RUNS {
+  uuid id PK
+  uuid organization_id FK
+  text model_version
+  text source
+  text mode
+  timestamptz origin
+  timestamptz generated_at
+  text quality
+  text artifact_checksum
+  text dataset_hash
+  jsonb metadata
+ }
+ LOAD_PREDICTIONS {
+  uuid run_id PK,FK
+  int horizon PK
+  uuid organization_id FK
+  timestamptz target_at
+  numeric power_kw
+  numeric last_kw
+  numeric weekly_kw
+ }
+```
+
+011 хранит сетевой synthetic experiment; station_id отсутствует. FK(run,org)
+исключает смешение организаций, unique(org,version,origin) — дубли, PK(run,h),
+unique(run,target_at), h1..24 и deferred constraint требуют ровно24 последовательных
+часа origin+h. Конечные неотрицательные numeric, nullable baseline; immutable triggers
+запрещают UPDATE/DELETE. metadata содержит source/schema/validation/test metrics,
+train/splits/versions в Git manifest. Это действующие поля вместо целевого перечня.
+Синтетическая история не попадает в power_measurements/session_measurements.

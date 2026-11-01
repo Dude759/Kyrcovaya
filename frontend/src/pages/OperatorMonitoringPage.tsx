@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { GridPlanningPanel } from "../components/GridPlanningPanel";
+import { ForecastPanel } from "../components/ForecastPanel";
 import { PowerDispatchPanel } from "../components/PowerDispatchPanel";
 import { Link, useSearchParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
@@ -321,6 +322,9 @@ export function OperatorMonitoringPage({
           <PowerDispatchPanel />
           <GridPlanningPanel applicationSeparate />
         </>
+      )}
+      {view === "dashboard" && (
+        <ForecastPanel forecast={null} networkLimit={0} />
       )}
       <p className="demo-note">
         Учебный мониторинг. Физическое оборудование и энергосистема не

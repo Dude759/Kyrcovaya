@@ -1,0 +1,628 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Энерготранспорт — Forecast",
+    "version": "0.11.0",
+    "description": "Operator-only historical synthetic replay; actual remains NEEDS_MORE_DATA; no dynamic inference or dispatch."
+  },
+  "servers": [
+    {
+      "url": "https://energotransport-api-dude759.onrender.com/api"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "ForecastBundle": {
+        "type": "object",
+        "required": [
+          "organizationId",
+          "source",
+          "mode",
+          "origin",
+          "generatedAt",
+          "modelVersion",
+          "quality",
+          "datasetHash",
+          "metrics",
+          "points"
+        ],
+        "properties": {
+          "organizationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "const": "synthetic"
+          },
+          "mode": {
+            "const": "historical_replay"
+          },
+          "origin": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modelVersion": {
+            "type": "string"
+          },
+          "quality": {
+            "const": "synthetic_experiment_only"
+          },
+          "datasetHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "points": {
+            "type": "array",
+            "minItems": 24,
+            "maxItems": 24,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "h",
+                "time",
+                "powerKw",
+                "lastKw",
+                "weeklyKw"
+              ],
+              "properties": {
+                "h": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 24
+                },
+                "time": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "powerKw": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "lastKw": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "weeklyKw": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "validation": {
+                "type": "object",
+                "required": [
+                  "aggregate",
+                  "origins",
+                  "pairs",
+                  "candidate_pairs",
+                  "coverage",
+                  "horizons"
+                ],
+                "properties": {
+                  "aggregate": {
+                    "type": "object",
+                    "required": [
+                      "rf",
+                      "last",
+                      "weekly"
+                    ],
+                    "properties": {
+                      "rf": {
+                        "type": "object",
+                        "required": [
+                          "n",
+                          "mae_kw",
+                          "rmse_kw"
+                        ],
+                        "properties": {
+                          "n": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "mae_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "rmse_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        }
+                      },
+                      "last": {
+                        "type": "object",
+                        "required": [
+                          "n",
+                          "mae_kw",
+                          "rmse_kw"
+                        ],
+                        "properties": {
+                          "n": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "mae_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "rmse_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        }
+                      },
+                      "weekly": {
+                        "type": "object",
+                        "required": [
+                          "n",
+                          "mae_kw",
+                          "rmse_kw"
+                        ],
+                        "properties": {
+                          "n": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "mae_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "rmse_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "origins": {
+                    "type": "integer"
+                  },
+                  "pairs": {
+                    "type": "integer"
+                  },
+                  "candidate_pairs": {
+                    "type": "integer"
+                  },
+                  "coverage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "horizons": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "rf": {
+                          "type": "object",
+                          "required": [
+                            "n",
+                            "mae_kw",
+                            "rmse_kw"
+                          ],
+                          "properties": {
+                            "n": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "mae_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "rmse_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            }
+                          }
+                        },
+                        "last": {
+                          "type": "object",
+                          "required": [
+                            "n",
+                            "mae_kw",
+                            "rmse_kw"
+                          ],
+                          "properties": {
+                            "n": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "mae_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "rmse_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            }
+                          }
+                        },
+                        "weekly": {
+                          "type": "object",
+                          "required": [
+                            "n",
+                            "mae_kw",
+                            "rmse_kw"
+                          ],
+                          "properties": {
+                            "n": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "mae_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "rmse_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "test": {
+                "type": "object",
+                "required": [
+                  "aggregate",
+                  "origins",
+                  "pairs",
+                  "candidate_pairs",
+                  "coverage",
+                  "horizons"
+                ],
+                "properties": {
+                  "aggregate": {
+                    "type": "object",
+                    "required": [
+                      "rf",
+                      "last",
+                      "weekly"
+                    ],
+                    "properties": {
+                      "rf": {
+                        "type": "object",
+                        "required": [
+                          "n",
+                          "mae_kw",
+                          "rmse_kw"
+                        ],
+                        "properties": {
+                          "n": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "mae_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "rmse_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        }
+                      },
+                      "last": {
+                        "type": "object",
+                        "required": [
+                          "n",
+                          "mae_kw",
+                          "rmse_kw"
+                        ],
+                        "properties": {
+                          "n": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "mae_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "rmse_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        }
+                      },
+                      "weekly": {
+                        "type": "object",
+                        "required": [
+                          "n",
+                          "mae_kw",
+                          "rmse_kw"
+                        ],
+                        "properties": {
+                          "n": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "mae_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "rmse_kw": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "origins": {
+                    "type": "integer"
+                  },
+                  "pairs": {
+                    "type": "integer"
+                  },
+                  "candidate_pairs": {
+                    "type": "integer"
+                  },
+                  "coverage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "horizons": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "rf": {
+                          "type": "object",
+                          "required": [
+                            "n",
+                            "mae_kw",
+                            "rmse_kw"
+                          ],
+                          "properties": {
+                            "n": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "mae_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "rmse_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            }
+                          }
+                        },
+                        "last": {
+                          "type": "object",
+                          "required": [
+                            "n",
+                            "mae_kw",
+                            "rmse_kw"
+                          ],
+                          "properties": {
+                            "n": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "mae_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "rmse_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            }
+                          }
+                        },
+                        "weekly": {
+                          "type": "object",
+                          "required": [
+                            "n",
+                            "mae_kw",
+                            "rmse_kw"
+                          ],
+                          "properties": {
+                            "n": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "mae_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "rmse_kw": {
+                              "type": "number",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/operator/forecast": {
+      "get": {
+        "summary": "Actual readiness; no verified actual model",
+        "responses": {
+          "400": {
+            "description": "Strict query: no unknown parameters"
+          },
+          "401": {
+            "description": "Bearer required"
+          },
+          "403": {
+            "description": "Operator required"
+          },
+          "200": {
+            "description": "Own organization readiness",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "readiness",
+                    "source",
+                    "forecast",
+                    "reason",
+                    "quality",
+                    "asOf",
+                    "mode"
+                  ],
+                  "properties": {
+                    "status": {
+                      "const": "insufficient_data"
+                    },
+                    "readiness": {
+                      "const": "NEEDS_MORE_DATA"
+                    },
+                    "source": {
+                      "const": "actual"
+                    },
+                    "forecast": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "quality": {
+                      "type": "object",
+                      "properties": {
+                        "completeStationHours": {
+                          "type": "integer"
+                        },
+                        "stationHours": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "mode": {
+                      "const": "offline_only"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Unsupported in offline replay architecture",
+        "responses": {
+          "401": {
+            "description": "Bearer required"
+          },
+          "403": {
+            "description": "Operator required"
+          },
+          "501": {
+            "description": "New Python calculation requires reviewed versioned artifact; nothing enqueued"
+          }
+        }
+      }
+    },
+    "/operator/forecast/demo": {
+      "get": {
+        "summary": "Own organization immutable historical experiment",
+        "responses": {
+          "400": {
+            "description": "Strict query: no unknown parameters"
+          },
+          "401": {
+            "description": "Bearer required"
+          },
+          "403": {
+            "description": "Operator required"
+          },
+          "404": {
+            "description": "No experiment of this organization"
+          },
+          "503": {
+            "description": "Artifact not published or checksum/DB points mismatch"
+          },
+          "200": {
+            "description": "Historical replay, not a forecast for today",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "historical",
+                    "staleForCurrentNetwork",
+                    "forecast",
+                    "warning"
+                  ],
+                  "properties": {
+                    "status": {
+                      "const": "ready"
+                    },
+                    "historical": {
+                      "const": true
+                    },
+                    "staleForCurrentNetwork": {
+                      "const": true
+                    },
+                    "forecast": {
+                      "$ref": "#/components/schemas/ForecastBundle"
+                    },
+                    "warning": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

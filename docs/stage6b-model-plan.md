@@ -2,7 +2,7 @@
 
 Вход: immutable dataset manifest/hash и разделения Stage 6A. Реальная история
 NEEDS_MORE_DATA. READY относится только к контролируемому synthetic эксперименту.
-Основная RandomForestRegressor на 6A не обучалась, forecast API остаётся недоступным.
+На момент6A RF не обучалась. [Реализация6B](testing/ml-model-results.md): offline replay B, новые jobs не реализованы. Ниже исходный план, а не текущий статус.
 
 ## Признаки и доступность
 

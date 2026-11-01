@@ -112,9 +112,30 @@ export type NetworkEvent = {
   severity: "info" | "warning" | "danger";
 };
 export type Forecast = {
-  source: "demo" | "model";
+  source: "demo" | "model" | "synthetic" | "actual";
   generatedAt: string;
-  points: { time: string; powerKw: number }[];
+  origin?: string;
+  modelVersion?: string;
+  mode?: "historical_replay";
+  quality?: string;
+  metrics?: { validation: ForecastMetrics; test: ForecastMetrics };
+  points: {
+    time: string;
+    powerKw: number;
+    lastKw?: number | null;
+    weeklyKw?: number | null;
+  }[];
+};
+export type ForecastMetrics = {
+  aggregate: Record<
+    "rf" | "last" | "weekly",
+    { n: number; mae_kw: number; rmse_kw: number }
+  >;
+  origins: number;
+  pairs: number;
+  coverage: number;
+  candidate_pairs: number;
+  horizons: Record<string, unknown>;
 };
 export type Snapshot = {
   operatorMonitoring?: boolean;

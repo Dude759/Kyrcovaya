@@ -27,7 +27,12 @@ export function LoadForecast({
       </section>
     );
   const points = forecast.points;
-  const max = Math.max(1000, ...points.map((p) => p.powerKw)) * 1.15;
+  const experiment = forecast.source === "synthetic";
+  const max =
+    Math.max(
+      experiment ? 1 : 1000,
+      ...points.flatMap((p) => [p.powerKw, p.lastKw ?? 0, p.weeklyKw ?? 0]),
+    ) * 1.15;
   const peak = points.reduce((a, b) => (a.powerKw > b.powerKw ? a : b));
   const current = selected === null ? peak : (points[selected] ?? peak);
   const x = (i: number) => 64 + (i / Math.max(points.length - 1, 1)) * 816;
@@ -39,10 +44,24 @@ export function LoadForecast({
         <div>
           <h2>Прогноз нагрузки · 24 часа</h2>
           <p>
-            {forecast.source === "demo"
-              ? "Демонстрационный сценарий. ML-модель пока не подключена."
-              : `Расчёт модели от ${dateTime(forecast.generatedAt)}`}
+            {experiment
+              ? `Synthetic · исторический replay · ${forecast.modelVersion}`
+              : forecast.source === "demo"
+                ? "Демонстрационный сценарий. ML-модель пока не подключена."
+                : `Расчёт модели от ${dateTime(forecast.generatedAt)}`}
           </p>
+          {experiment && (
+            <>
+              <p>
+                Origin: {forecast.origin} · Расчёт Python:{" "}
+                {forecast.generatedAt}
+              </p>
+              <p>
+                24 следующих часа относительно исторического origin, не прогноз
+                на сегодня. Качество: {forecast.quality}.
+              </p>
+            </>
+          )}
         </div>
         <button
           className="button button--outline"
@@ -63,12 +82,17 @@ export function LoadForecast({
       <div className="forecast-summary">
         <span>
           {selected === null ? "Ожидаемый пик" : "Нагрузка в выбранный час"}:{" "}
-          <strong>{(current.powerKw / 1000).toFixed(2)} МВт</strong> ·{" "}
-          {hourLabel(current.time)}
+          <strong>
+            {experiment
+              ? `${current.powerKw.toFixed(2)} кВт`
+              : `${(current.powerKw / 1000).toFixed(2)} МВт`}
+          </strong>{" "}
+          · {hourLabel(current.time)}
         </span>
         <span>
-          {Math.round((peak.powerKw / networkLimit) * 100)}% лимита сети в
-          пиковый час
+          {experiment
+            ? "RF / last observation / weekly baseline"
+            : `${Math.round((peak.powerKw / networkLimit) * 100)}% лимита сети в пиковый час`}
         </span>
       </div>
       <div className="forecast-chart-scroll">
@@ -76,7 +100,7 @@ export function LoadForecast({
           className="forecast-chart"
           viewBox="0 0 910 218"
           role="img"
-          aria-label={`Прогноз нагрузки на сутки. Пик ${(peak.powerKw / 1000).toFixed(2)} МВт в ${hourLabel(peak.time)}.`}
+          aria-label={`Прогноз нагрузки на сутки${experiment ? " · исторический synthetic" : ""}. Пик ${experiment ? peak.powerKw.toFixed(2) + " кВт" : (peak.powerKw / 1000).toFixed(2) + " МВт"} в ${hourLabel(peak.time)}.`}
         >
           {[0, 1, 2, 3].map((i) => {
             const value = (max / 3) * i;
@@ -90,15 +114,40 @@ export function LoadForecast({
                   stroke="#e4e8e3"
                 />
                 <text x="50" y={y(value) + 4} textAnchor="end">
-                  {(value / 1000).toFixed(1)}
+                  {(experiment ? value : value / 1000).toFixed(1)}
                 </text>
               </g>
             );
           })}
-          <polygon
-            points={`64,180 ${polyline} ${x(points.length - 1)},180`}
-            fill="#edf4ec"
-          />
+          {!experiment && (
+            <polygon
+              points={`64,180 ${polyline} ${x(points.length - 1)},180`}
+              fill="#edf4ec"
+            />
+          )}
+          {experiment &&
+            (["lastKw", "weeklyKw"] as const).flatMap((key) => {
+              const segments: string[][] = [[]];
+              points.forEach((p, i) => {
+                const value = p[key];
+                if (value == null) {
+                  if (segments[segments.length - 1].length) segments.push([]);
+                } else
+                  segments[segments.length - 1].push(`${x(i)},${y(value)}`);
+              });
+              return segments
+                .filter((s) => s.length)
+                .map((s, i) => (
+                  <polyline
+                    key={key + i}
+                    points={s.join(" ")}
+                    fill="none"
+                    stroke={key === "lastKw" ? "#8a6d3a" : "#667b9a"}
+                    strokeWidth="2"
+                    strokeDasharray={key === "lastKw" ? "7 4" : "3 3"}
+                  />
+                ));
+            })}
           <polyline
             points={polyline}
             fill="none"
@@ -143,8 +192,55 @@ export function LoadForecast({
             </option>
           ))}
         </select>
-        <span>Мощность, МВт · московское время</span>
+        <span>Мощность, {experiment ? "кВт" : "МВт"} · московское время</span>
       </label>
+      {experiment && forecast.metrics && (
+        <>
+          <p>
+            Сплошная зелёная линия: RF. Коричневый пунктир: last observation.
+            Синий пунктир: weekly. Отсутствующий baseline час не дорисовывается.
+          </p>
+          <h3>Оценка только на synthetic test</h3>
+          <div className="table-scroll">
+            <table className="monitor-history-table">
+              <thead>
+                <tr>
+                  <th>Метод</th>
+                  <th>MAE, кВт</th>
+                  <th>RMSE, кВт</th>
+                  <th>Общих пар origin/h</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(["rf", "last", "weekly"] as const).map((m) => (
+                  <tr key={m}>
+                    <td>
+                      {m === "rf"
+                        ? "RandomForestRegressor"
+                        : m === "last"
+                          ? "Last observation"
+                          : "Weekly baseline"}
+                    </td>
+                    <td>
+                      {forecast.metrics!.test.aggregate[m].mae_kw.toFixed(3)}
+                    </td>
+                    <td>
+                      {forecast.metrics!.test.aggregate[m].rmse_kw.toFixed(3)}
+                    </td>
+                    <td>{forecast.metrics!.test.aggregate[m].n}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p>
+            {forecast.metrics.test.origins} origins · coverage{" "}
+            {(forecast.metrics.test.coverage * 100).toFixed(2)}% допустимых пар.
+            Это покрытие данных, не процент точности. Перекрывающиеся пары не
+            являются независимыми физическими часами.
+          </p>
+        </>
+      )}
     </section>
   );
 }

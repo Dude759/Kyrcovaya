@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { seedForecast } from "../src/modules/operator/forecast.js";
 import { z } from "zod";
 import { transaction, type Database } from "../src/db/pool.js";
 import { hashPassword } from "../src/modules/auth/security.js";
@@ -123,4 +124,10 @@ export async function seed(
         }
     }
   });
+  // Legacy migration upgrade fixtures seed 001–009 before applying later migrations.
+  if (
+    (await pool.query("SELECT to_regclass('forecast_runs') AS present")).rows[0]
+      .present
+  )
+    await seedForecast(pool);
 }

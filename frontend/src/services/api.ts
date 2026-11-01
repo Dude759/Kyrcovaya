@@ -103,6 +103,23 @@ export async function request<T>(
   }
 }
 export const api = {
+  forecastStatus: () =>
+    request<{
+      status: "insufficient_data";
+      readiness: "NEEDS_MORE_DATA";
+      forecast: null;
+      source: "actual";
+      reason: string;
+      quality: { completeStationHours: number; stationHours: number };
+    }>("/operator/forecast"),
+  forecastDemo: () =>
+    request<{
+      status: "ready";
+      historical: true;
+      staleForCurrentNetwork: true;
+      forecast: Forecast;
+      warning: string;
+    }>("/operator/forecast/demo"),
   powerDispatch: () =>
     request<import("../components/PowerDispatchPanel").DispatchView>(
       "/operator/power/dispatch",

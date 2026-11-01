@@ -35,7 +35,7 @@
 | 6. Сценарий водителя | Конкурентная бронь → тестовая оплата → серверная зарядка → завершение и история | 3A/3B CLOSED; 3C — локальная приёмка пройдена, публичная в PR; 3D предстоит |
 | 7. Оператор и ГИС | CRUD станций/портов, мониторинг своей организации; изменения БД видны на карте | Интерфейсы есть; серверное управление предстоит |
 | 8. Управление мощностью | Grid-имитатор, max-min распределение, подтверждения команд, проверка бюджета | Алгоритм описан; предстоит реализация |
-| 9. ML-прогноз | Источник данных, baseline, временные train/validation/test, 24 точки, MAE/RMSE | Методика описана; обучение и измерения не проводились |
+| 9. ML-прогноз | Источник данных, baseline, временные train/validation/test, 24 точки, MAE/RMSE | Stage6A аудит/baseline; Stage6B synthetic RF обучен, offline replay; actual NEEDS_MORE_DATA. Публичный итог в release PR |
 | 10. Тестирование | [Тест-план](testing/test-plan.md), реальные команды и результаты по каждой версии | 72 backend: Foundation + R00–R17 + P00–P19 + F00–F21; 59 frontend. Фактические результаты — в протоколах |
 | 11. Развёртывание | Инструкция размещения, HTTPS, проверка опубликованного стенда | Pages + Render Free + Neon Free; серверные аккаунты и каталог доступны публично |
 | 12. Технологическая документация | Запуск с чистого окружения, переменные, миграции, seed, API и ограничения имитаторов | Документация frontend есть; дополняется по факту |
@@ -156,3 +156,9 @@ PostgreSQL readings → scoped monitoring API → HTTP operator UI. Derived hour
 ## Stage 5A — shadow Grid planning
 
 GridAdapter simulator, integer-W max-min, durable immutable planning snapshots, scoped idempotent scenario commands and separate audit. No device power changes. [Contract, tests and acceptance](testing/grid-planning-results.md). GRID_FRESHNESS_SECONDS: 5–3600 (default60). Stage 5B requires acknowledged setPower and interval-safe metering.
+
+## Stage 6B — материалы для записки
+
+[Опыт/все метрики](testing/ml-model-results.md), [аудит документации](documentation-audit.md),
+[раздел ML](coursework-ml-section.md). Различать synthetic опыт, историю имитатора и
+физическую сеть. Offline replay — граница текущего публичного Node runtime.

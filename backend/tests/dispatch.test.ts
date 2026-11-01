@@ -349,7 +349,7 @@ const dispatch = () => runPowerDispatch(pool, adapter);
 
 test("D00: migration repeat, OFF default, immutable state/history/receipt and retained shadow constraints", async () => {
   await migrate(pool);
-  assert.equal(await count("schema_migrations"), 10);
+  assert.equal(await count("schema_migrations"), 11);
   assert.equal((await op("/power/dispatch")).data.enabled, false);
   const s = await active();
   await assert.rejects(
