@@ -1,0 +1,24 @@
+{
+  "raw": {
+    "readings": 260,
+    "last_sample": "2026-11-01T11:57:50.347+00:00",
+    "first_sample": "2026-10-27T10:06:48.132+00:00",
+    "gap_readings": 0
+  },
+  "as_of": "2026-11-01T20:11:23.01006+00:00",
+  "hourly": {
+    "gaps": 0,
+    "rows": 912,
+    "hours": 90,
+    "missing": 905,
+    "partial": 7,
+    "complete": 0,
+    "stations": 12,
+    "last_hour": "2026-11-01T13:00:00+00:00",
+    "boundaries": 0,
+    "first_hour": "2026-10-28T19:00:00+00:00"
+  },
+  "sessions": 14,
+  "grid_samples": 304,
+  "power_transitions": 36
+}
